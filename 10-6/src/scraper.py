@@ -91,7 +91,9 @@ class PropertyScraper:
         # chrome_options.add_experimental_option("prefs", prefs)
 
         try:
-            driver = webdriver.Chrome(options=chrome_options)
+            # Use Selenium Manager for automatic ChromeDriver management
+            service = ChromeService()
+            driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_page_load_timeout(self.page_load_timeout)
 
             # Execute CDP commands to prevent detection

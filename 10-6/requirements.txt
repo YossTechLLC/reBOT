@@ -1,7 +1,7 @@
 # Core dependencies for property scraper application
 
 # Web automation
-selenium==4.15.2
+selenium>=4.16.0
 beautifulsoup4==4.12.2
 
 # Excel handling
