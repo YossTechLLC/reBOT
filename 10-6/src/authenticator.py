@@ -94,46 +94,78 @@ class FMLSAuthenticator:
 
     def navigate_to_login(self) -> bool:
         """
-        Navigate directly to login page.
+        Navigate to login page and handle OAuth redirect.
 
         Returns:
             True if navigation successful, False otherwise
         """
         try:
-            logger.info("Navigating directly to FMLS login page...")
+            logger.info("Navigating to FMLS SSO page (will redirect to Auth0)...")
 
-            # Go directly to login URL (skip home page)
+            # Navigate to FMLS SSO URL
             login_url = self.config['login_url']
-            logger.debug(f"[DEBUG] Navigating to: {login_url}")
+            logger.debug(f"[DEBUG] Initial navigation to: {login_url}")
 
             self.driver.get(login_url)
 
-            # Wait for page to load
-            logger.debug("[DEBUG] Waiting for page to load...")
-            time.sleep(3)
+            # Log initial URL
+            initial_url = self.driver.current_url
+            logger.debug(f"[DEBUG] Initial URL after navigation: {initial_url}")
 
-            # Wait for page to be ready
+            # Wait for OAuth redirect to Auth0 login page
+            logger.info("Waiting for OAuth redirect to Auth0...")
             wait = WebDriverWait(self.driver, self.config.get('login_timeout', 30))
-            wait.until(lambda driver: driver.execute_script("return document.readyState") == "complete")
 
-            logger.info("✓ Reached login page directly")
-            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+            # Wait for URL to change to Auth0 login page
+            try:
+                wait.until(lambda d: 'firstmls-login.sso.remine.com' in d.current_url)
+                logger.debug(f"[DEBUG] Detected redirect to Auth0 login")
+            except TimeoutException:
+                logger.warning("Did not detect redirect to firstmls-login.sso.remine.com")
+                logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+                # Continue anyway - might already be on login page
+
+            # Log the redirected URL with all OAuth parameters
+            redirected_url = self.driver.current_url
+            logger.debug(f"[DEBUG] Redirected URL: {redirected_url[:100]}...")  # First 100 chars
+            logger.info(f"✓ Reached Auth0 login page: {redirected_url.split('?')[0]}")
+
+            # Wait for page to be fully loaded
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            logger.debug("[DEBUG] Page document.readyState = complete")
+
+            # Additional wait for dynamic content
+            time.sleep(2)
+
+            # Log page title for verification
+            page_title = self.driver.title
+            logger.debug(f"[DEBUG] Page title: {page_title}")
 
             return True
 
         except TimeoutException:
-            logger.error("Timeout waiting for login page to load")
+            logger.error("❌ Timeout waiting for login page to load")
             logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+            logger.debug(f"[DEBUG] Page title: {self.driver.title}")
+
+            # Save screenshot for debugging
+            self._save_debug_screenshot("navigate_to_login_timeout")
+
             return False
 
         except Exception as e:
-            logger.error(f"Error navigating to login page: {e}")
+            logger.error(f"❌ Error navigating to login page: {e}")
             logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+            logger.debug(f"[DEBUG] Exception type: {type(e).__name__}")
+
+            # Save screenshot for debugging
+            self._save_debug_screenshot("navigate_to_login_error")
+
             return False
 
     def perform_login(self, login_id: str, password: str) -> bool:
         """
-        Fill in login credentials and submit.
+        Fill in login credentials and submit using Auth0 selectors.
 
         Args:
             login_id: User login ID
@@ -143,58 +175,148 @@ class FMLSAuthenticator:
             True if login form submitted successfully, False otherwise
         """
         try:
-            logger.info("Filling in login credentials...")
+            logger.info("Filling in login credentials on Auth0 page...")
+
+            # DEBUG: Log all input fields on the page
+            self._log_page_inputs()
 
             wait = WebDriverWait(self.driver, self.config.get('login_timeout', 30))
 
-            # Find login ID input
-            login_input_selector = self.config['login_id_input']
-            logger.debug(f"Looking for login input: {login_input_selector}")
+            # Try multiple possible selectors for username/email field (Auth0 variations)
+            username_selectors = [
+                'input[type="email"]',
+                'input[name="username"]',
+                'input[name="email"]',
+                '#username',
+                'input[id="username"]',
+                self.config['login_id_input']  # Fallback to config
+            ]
 
-            login_input = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, login_input_selector))
-            )
+            login_input = None
+            used_selector = None
+
+            logger.debug("[DEBUG] Attempting to find username/email input...")
+            for selector in username_selectors:
+                try:
+                    logger.debug(f"[DEBUG] Trying selector: {selector}")
+                    login_input = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    used_selector = selector
+                    logger.info(f"✓ Found username field with selector: {selector}")
+                    break
+                except (TimeoutException, NoSuchElementException):
+                    logger.debug(f"[DEBUG] Selector '{selector}' not found, trying next...")
+                    continue
+
+            if not login_input:
+                logger.error("❌ Could not find username/email input field with any selector")
+                self._save_debug_screenshot("login_username_not_found")
+                self._save_page_source("login_username_not_found")
+                return False
 
             # Fill in login ID
             login_input.clear()
             login_input.send_keys(login_id)
-            logger.debug("Entered login ID")
+            logger.info(f"✓ Entered login ID (field: {used_selector})")
 
             random_delay(0.5, 1.0)
 
-            # Find password input
-            password_input_selector = self.config['password_input']
-            password_input = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, password_input_selector))
-            )
+            # Try multiple possible selectors for password field
+            password_selectors = [
+                'input[type="password"]',
+                'input[name="password"]',
+                '#password',
+                'input[id="password"]',
+                self.config['password_input']  # Fallback to config
+            ]
+
+            password_input = None
+            used_password_selector = None
+
+            logger.debug("[DEBUG] Attempting to find password input...")
+            for selector in password_selectors:
+                try:
+                    logger.debug(f"[DEBUG] Trying selector: {selector}")
+                    password_input = wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    used_password_selector = selector
+                    logger.info(f"✓ Found password field with selector: {selector}")
+                    break
+                except (TimeoutException, NoSuchElementException):
+                    logger.debug(f"[DEBUG] Selector '{selector}' not found, trying next...")
+                    continue
+
+            if not password_input:
+                logger.error("❌ Could not find password input field with any selector")
+                self._save_debug_screenshot("login_password_not_found")
+                self._save_page_source("login_password_not_found")
+                return False
 
             # Fill in password
             password_input.clear()
             password_input.send_keys(password)
-            logger.debug("Entered password")
+            logger.info(f"✓ Entered password (field: {used_password_selector})")
 
             random_delay(0.5, 1.0)
 
-            # Click login button
-            login_button_selector = self.config['login_button']
-            login_button = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, login_button_selector))
-            )
+            # Try multiple possible selectors for submit button
+            submit_selectors = [
+                'button[type="submit"]',
+                'button[name="action"]',
+                'button.auth0-lock-submit',
+                'input[type="submit"]',
+                self.config['login_button']  # Fallback to config
+            ]
 
+            login_button = None
+            used_button_selector = None
+
+            logger.debug("[DEBUG] Attempting to find submit button...")
+            for selector in submit_selectors:
+                try:
+                    logger.debug(f"[DEBUG] Trying selector: {selector}")
+                    login_button = wait.until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                    )
+                    used_button_selector = selector
+                    logger.info(f"✓ Found submit button with selector: {selector}")
+                    break
+                except (TimeoutException, NoSuchElementException):
+                    logger.debug(f"[DEBUG] Selector '{selector}' not found, trying next...")
+                    continue
+
+            if not login_button:
+                logger.error("❌ Could not find submit button with any selector")
+                self._save_debug_screenshot("login_button_not_found")
+                self._save_page_source("login_button_not_found")
+                return False
+
+            # Click login button
             login_button.click()
-            logger.info("Clicked login button")
+            logger.info(f"✓ Clicked login button (button: {used_button_selector})")
 
             # Wait for page to process login
+            logger.debug("[DEBUG] Waiting for login to process...")
             time.sleep(3)
 
+            logger.info("✓ Login form submitted successfully")
             return True
 
         except TimeoutException:
-            logger.error("Timeout waiting for login form elements")
+            logger.error("❌ Timeout waiting for login form elements")
+            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+            self._save_debug_screenshot("login_form_timeout")
+            self._save_page_source("login_form_timeout")
             return False
 
         except Exception as e:
-            logger.error(f"Error during login: {e}")
+            logger.error(f"❌ Error during login: {e}")
+            logger.debug(f"[DEBUG] Exception type: {type(e).__name__}")
+            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+            self._save_debug_screenshot("login_form_error")
+            self._save_page_source("login_form_error")
             return False
 
     def handle_2fa(self) -> bool:
@@ -279,6 +401,87 @@ class FMLSAuthenticator:
         except Exception as e:
             logger.error(f"Error during 2FA: {e}")
             return False
+
+    def _save_debug_screenshot(self, name: str) -> None:
+        """
+        Save a screenshot for debugging purposes.
+
+        Args:
+            name: Name identifier for the screenshot
+        """
+        try:
+            # Import Path for settings
+            from pathlib import Path
+            from config import Settings
+
+            timestamp = int(time.time())
+            filename = f"{name}_{timestamp}.png"
+            filepath = Settings.LOGS_DIR / filename
+
+            self.driver.save_screenshot(str(filepath))
+            logger.info(f"📸 Screenshot saved: {filepath}")
+
+        except Exception as e:
+            logger.warning(f"Failed to save screenshot: {e}")
+
+    def _save_page_source(self, name: str) -> None:
+        """
+        Save the current page HTML source for debugging.
+
+        Args:
+            name: Name identifier for the HTML file
+        """
+        try:
+            from pathlib import Path
+            from config import Settings
+
+            timestamp = int(time.time())
+            filename = f"{name}_{timestamp}.html"
+            filepath = Settings.LOGS_DIR / filename
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(self.driver.page_source)
+
+            logger.info(f"📄 Page source saved: {filepath}")
+
+        except Exception as e:
+            logger.warning(f"Failed to save page source: {e}")
+
+    def _log_page_inputs(self) -> None:
+        """
+        Log all input fields found on the current page for debugging.
+        """
+        try:
+            logger.debug("[DEBUG] === Inspecting page input fields ===")
+
+            # Find all input elements
+            inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+            logger.debug(f"[DEBUG] Found {len(inputs)} input elements:")
+
+            for i, inp in enumerate(inputs[:10], 1):  # Limit to first 10
+                input_type = inp.get_attribute('type') or 'text'
+                input_name = inp.get_attribute('name') or 'N/A'
+                input_id = inp.get_attribute('id') or 'N/A'
+                input_placeholder = inp.get_attribute('placeholder') or 'N/A'
+
+                logger.debug(f"[DEBUG]   {i}. type={input_type}, name={input_name}, "
+                           f"id={input_id}, placeholder={input_placeholder}")
+
+            # Find all buttons
+            buttons = self.driver.find_elements(By.TAG_NAME, 'button')
+            logger.debug(f"[DEBUG] Found {len(buttons)} button elements:")
+
+            for i, btn in enumerate(buttons[:5], 1):  # Limit to first 5
+                btn_type = btn.get_attribute('type') or 'N/A'
+                btn_name = btn.get_attribute('name') or 'N/A'
+                btn_text = btn.text or 'N/A'
+
+                logger.debug(f"[DEBUG]   {i}. type={btn_type}, name={btn_name}, text={btn_text}")
+
+            logger.debug("[DEBUG] === End page inspection ===")
+
+        except Exception as e:
+            logger.debug(f"[DEBUG] Failed to inspect page inputs: {e}")
 
     def navigate_to_remine(self) -> bool:
         """
