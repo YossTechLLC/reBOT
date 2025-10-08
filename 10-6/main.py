@@ -10,6 +10,7 @@ Usage:
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add src directory to Python path
@@ -356,6 +357,39 @@ def main():
                 return 1
 
             logger.info("\n✓ Ready to begin scraping operations\n")
+
+            # ============================================================================
+            # AUTHENTICATION BREAKPOINT
+            # ============================================================================
+            # This is the point where authentication is complete and the session is live.
+            # The browser is authenticated and ready for testing.
+            #
+            # Use this breakpoint to:
+            # 1. Keep the session open for manual testing
+            # 2. Run capture_full_session.py to capture complete auth state
+            # 3. Verify authentication persistence
+            #
+            # Set ENABLE_AUTH_BREAKPOINT=true in .env to activate
+            # ============================================================================
+
+            if Settings.ENABLE_FMLS_AUTH and os.getenv('ENABLE_AUTH_BREAKPOINT', 'false').lower() == 'true':
+                logger.info("\n" + "=" * 80)
+                logger.info("🔴 AUTHENTICATION BREAKPOINT ACTIVATED")
+                logger.info("=" * 80)
+                logger.info("\n✓ Browser session is OPEN and AUTHENTICATED")
+                logger.info("✓ You can now run diagnostic tools while session is active")
+                logger.info("\nTo capture complete session state, open a new terminal and run:")
+                logger.info("  python capture_full_session.py")
+                logger.info("\nThe browser will remain open until you press Enter here.")
+                logger.info("\n" + "=" * 80)
+
+                try:
+                    input("\n👉 Press Enter to continue (or Ctrl+C to exit)...\n")
+                    logger.info("\n✓ Resuming normal operation...\n")
+                except KeyboardInterrupt:
+                    logger.info("\n\n✓ Authentication breakpoint exited by user")
+                    logger.info("✓ Browser session will close now")
+                    return 0
 
         # Validate input file and get addresses
         success, addresses = validate_input_file()
