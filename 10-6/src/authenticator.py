@@ -5,6 +5,8 @@ Handles the complete login flow including 2FA for FMLS/Remine access.
 
 import logging
 import time
+import json
+from datetime import datetime
 from typing import Optional, Dict
 from pathlib import Path
 from selenium import webdriver
@@ -64,8 +66,26 @@ class FMLSAuthenticator:
         try:
             logger.info("Checking if already authenticated...")
 
+            # DEBUG SESSION PERSISTENCE: Enhanced auth checking
+            logger.info(f"[DEBUG SESSION] === AUTHENTICATION CHECK ===")
+
+            # Show current cookies before navigation
+            current_cookies = self.driver.get_cookies()
+            logger.info(f"[DEBUG SESSION] Browser has {len(current_cookies)} cookies before dashboard check")
+            cookie_domains = set(c.get('domain', '') for c in current_cookies)
+            logger.info(f"[DEBUG SESSION] Cookie domains in browser: {', '.join(sorted(cookie_domains))}")
+
+            # Check for SSO cookies specifically
+            sso_cookies = [c for c in current_cookies if 'firstmls.sso.remine.com' in c.get('domain', '')]
+            logger.info(f"[DEBUG SESSION] SSO cookies present: {len(sso_cookies)}")
+            if sso_cookies:
+                for cookie in sso_cookies[:3]:
+                    logger.info(f"[DEBUG SESSION]   - {cookie.get('name')}")
+            # END DEBUG SESSION PERSISTENCE
+
             # Try to navigate to dashboard
             dashboard_url = self.config['dashboard_url']
+            logger.info(f"[DEBUG SESSION] Navigating to dashboard: {dashboard_url}")
             self.driver.get(dashboard_url)
 
             # Wait a moment for page to load
@@ -74,22 +94,54 @@ class FMLSAuthenticator:
             # Check if we're on the dashboard (not error page)
             current_url = self.driver.current_url
             page_source = self.driver.page_source.lower()
+            page_title = self.driver.title
+
+            # DEBUG SESSION PERSISTENCE: Log page details
+            logger.info(f"[DEBUG SESSION] After navigation:")
+            logger.info(f"[DEBUG SESSION]   Current URL: {current_url}")
+            logger.info(f"[DEBUG SESSION]   Page title: {page_title}")
+            logger.info(f"[DEBUG SESSION]   Page source length: {len(page_source)} chars")
+            # END DEBUG SESSION PERSISTENCE
 
             # Check for error message
             if "oops! something's wrong" in page_source or "can't seem to find the page" in page_source:
                 logger.info("Not authenticated - error page detected")
+                # DEBUG SESSION PERSISTENCE: Show error details
+                logger.info(f"[DEBUG SESSION] Error page detected in source")
+                logger.info(f"[DEBUG SESSION] This means cookies didn't provide valid authentication")
+                # END DEBUG SESSION PERSISTENCE
+                return False
+
+            # Check for login redirect
+            if 'login' in current_url.lower() or 'auth' in current_url.lower():
+                logger.info(f"[DEBUG SESSION] Redirected to login/auth page - not authenticated")
+                logger.info(f"[DEBUG SESSION] Redirect URL: {current_url}")
                 return False
 
             # Check if URL contains dashboard
             if 'dashboard' in current_url:
                 logger.info("Already authenticated - dashboard accessible")
+                # DEBUG SESSION PERSISTENCE: Confirm success
+                logger.info(f"[DEBUG SESSION] ✓ Dashboard accessible - authentication successful!")
+                # END DEBUG SESSION PERSISTENCE
                 return True
+
+            # DEBUG SESSION PERSISTENCE: Unclear status
+            logger.info(f"[DEBUG SESSION] Authentication status unclear")
+            logger.info(f"[DEBUG SESSION] URL doesn't contain 'dashboard' but no error detected")
+            logger.info(f"[DEBUG SESSION] Current URL: {current_url}")
+            # END DEBUG SESSION PERSISTENCE
 
             logger.info("Authentication status unclear - will attempt login")
             return False
 
         except Exception as e:
             logger.warning(f"Error checking authentication status: {e}")
+            # DEBUG SESSION PERSISTENCE: Log exception
+            logger.warning(f"[DEBUG SESSION] Exception during auth check: {type(e).__name__}: {e}")
+            import traceback
+            logger.warning(f"[DEBUG SESSION] Traceback:\n{traceback.format_exc()}")
+            # END DEBUG SESSION PERSISTENCE
             return False
 
     def navigate_to_login(self) -> bool:
@@ -767,37 +819,89 @@ class FMLSAuthenticator:
 
             logger.info("✓ Dashboard accessible")
 
-            # Navigate to Remine FIRST (before saving cookies)
-            logger.info("\nStep 3.6: Navigating to Remine product...")
+            # DEBUG SESSION PERSISTENCE: CRITICAL FIX V3 - Save cookies at BOTH locations
+            logger.info("\n[DEBUG SESSION] === DUAL COOKIE SAVE STRATEGY ===")
+            logger.info("[DEBUG SESSION] Problem: SSO cookies exist only on dashboard domain")
+            logger.info("[DEBUG SESSION] Solution: Save cookies at dashboard AND after Remine")
+            logger.info("[DEBUG SESSION] This captures BOTH SSO cookies AND Remine session cookies")
+            # END DEBUG SESSION PERSISTENCE
+
+            # SAVE POINT 1: Capture SSO/Dashboard cookies
+            logger.info("\nStep 3.6a: Saving SSO/Dashboard cookies...")
+            logger.info(f"[DEBUG SESSION] Current URL (dashboard): {self.driver.current_url}")
+            sso_cookies = self.driver.get_cookies()
+            sso_domains = set(c.get('domain', 'unknown') for c in sso_cookies)
+            logger.info(f"[DEBUG SESSION] SSO cookies count: {len(sso_cookies)}")
+            logger.info(f"[DEBUG SESSION] SSO domains: {', '.join(sorted(sso_domains))}")
+
+            # Store SSO cookies temporarily
+            import json
+            sso_cookie_list = sso_cookies.copy()
+            logger.info(f"[DEBUG SESSION] ✓ Stored {len(sso_cookie_list)} SSO cookies for later merge")
+            # END DEBUG SESSION PERSISTENCE
+
+            # Navigate to Remine
+            logger.info("\nStep 3.6b: Navigating to Remine product...")
             if not self.navigate_to_remine():
                 logger.error("❌ Failed to navigate to Remine dashboard")
                 return False
 
             logger.info("✓ Successfully navigated to Remine")
 
-            # CRITICAL FIX: Save cookies AFTER reaching Remine
-            # The session cookies are created when you navigate to Remine, not before!
-            logger.info("\nStep 3.7: Saving session cookies for future use...")
-            # DEBUG SESSION PERSISTENCE: Save cookies at the RIGHT time
-            logger.info(f"[DEBUG SESSION] === SAVING COOKIES FOR PERSISTENCE ===")
-            logger.info(f"[DEBUG SESSION] ⚠️ CRITICAL: Saving AFTER Remine navigation to capture session cookies")
-            logger.info(f"[DEBUG SESSION] Current URL before save: {self.driver.current_url}")
-            logger.info(f"[DEBUG SESSION] Saving cookies WITHOUT domain filter to capture all auth cookies")
+            # SAVE POINT 2: Capture Remine session cookies
+            logger.info("\nStep 3.7: Saving combined cookies (SSO + Remine)...")
+            logger.info(f"[DEBUG SESSION] Current URL (Remine): {self.driver.current_url}")
+            remine_cookies = self.driver.get_cookies()
+            remine_domains = set(c.get('domain', 'unknown') for c in remine_cookies)
+            logger.info(f"[DEBUG SESSION] Remine cookies count: {len(remine_cookies)}")
+            logger.info(f"[DEBUG SESSION] Remine domains: {', '.join(sorted(remine_domains))}")
 
-            # Get cookie count before save for comparison
-            cookies_before = self.driver.get_cookies()
-            logger.info(f"[DEBUG SESSION] Browser has {len(cookies_before)} cookies available")
+            # CRITICAL: Merge SSO and Remine cookies
+            logger.info(f"[DEBUG SESSION] === MERGING COOKIES ===")
+            logger.info(f"[DEBUG SESSION] SSO cookies: {len(sso_cookie_list)}")
+            logger.info(f"[DEBUG SESSION] Remine cookies: {len(remine_cookies)}")
 
-            # Show cookie domains
-            domains_before = set(c.get('domain', 'unknown') for c in cookies_before)
-            logger.info(f"[DEBUG SESSION] Cookie domains available: {', '.join(sorted(domains_before))}")
+            # Create a dict to track unique cookies by name+domain
+            merged_cookies = {}
+            for cookie in sso_cookie_list + remine_cookies:
+                key = (cookie.get('name'), cookie.get('domain'))
+                merged_cookies[key] = cookie
+
+            final_cookie_list = list(merged_cookies.values())
+            logger.info(f"[DEBUG SESSION] Merged total: {len(final_cookie_list)} unique cookies")
+
+            # Show all domains in final set
+            all_domains = set(c.get('domain', 'unknown') for c in final_cookie_list)
+            logger.info(f"[DEBUG SESSION] Final cookie domains: {', '.join(sorted(all_domains))}")
+
+            # Check for critical SSO domain
+            has_sso = any('firstmls.sso.remine.com' in c.get('domain', '') for c in final_cookie_list)
+            has_remine = any('remine.com' in c.get('domain', '') for c in final_cookie_list)
+            logger.info(f"[DEBUG SESSION] Has SSO cookies: {has_sso}")
+            logger.info(f"[DEBUG SESSION] Has Remine cookies: {has_remine}")
+
+            if not has_sso:
+                logger.warning(f"[DEBUG SESSION] ⚠️ WARNING: No SSO cookies found! Auth check will fail!")
+            if not has_remine:
+                logger.warning(f"[DEBUG SESSION] ⚠️ WARNING: No Remine cookies found!")
             # END DEBUG SESSION PERSISTENCE
 
-            # CRITICAL FIX: Don't filter by domain - save ALL cookies from authenticated session
-            # The original code filtered by 'remine.com' but auth cookies may be on other domains
-            self.session_manager.save_cookies(self.driver, domain=None)
-            logger.info(f"[DEBUG SESSION] Cookie save operation completed")
-            # END DEBUG SESSION PERSISTENCE
+            # Save merged cookie list
+            logger.info(f"[DEBUG SESSION] Saving {len(final_cookie_list)} merged cookies to file...")
+
+            # Manually save merged cookies
+            cookie_data = {
+                'saved_at': datetime.now().isoformat(),
+                'domain': None,
+                'cookie_count': len(final_cookie_list),
+                'cookies': final_cookie_list
+            }
+
+            cookie_file = self.session_manager.cookie_file_path
+            with open(cookie_file, 'w') as f:
+                json.dump(cookie_data, f, indent=2)
+
+            logger.info(f"[DEBUG SESSION] ✓ Saved merged cookies to: {cookie_file}")
             logger.info("✓ Cookies saved")
 
             logger.info("=" * 80)

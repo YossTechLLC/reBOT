@@ -301,14 +301,36 @@ def show_recommendations(cookie_file, cookie_data):
             print(f"\n   Cookie domains found: {', '.join(sorted(domains))}")
             print(f"   Expected domains: {', '.join(expected_domains)}")
 
-            # Check if we have Remine cookies (most important)
+            # Check if we have critical cookie domains
+            has_sso = any('firstmls.sso.remine.com' in d for d in domains)
             has_remine = any('remine.com' in d for d in domains)
-            if has_remine:
-                print(f"\n   ✓ Found Remine cookies - authentication should work!")
-            else:
+
+            print(f"\n   🔍 Critical Domain Check:")
+            print(f"      SSO domain (firstmls.sso.remine.com): {'✓ Present' if has_sso else '✗ MISSING'}")
+            print(f"      Remine domain (*.remine.com): {'✓ Present' if has_remine else '✗ MISSING'}")
+
+            if has_sso and has_remine:
+                print(f"\n   ✓✓ Found BOTH SSO and Remine cookies - authentication should work!")
+            elif has_remine and not has_sso:
+                print(f"\n   ⚠️ CRITICAL PROBLEM: No SSO cookies found!")
+                print(f"   You have Remine cookies but missing SSO authentication cookies.")
+                print(f"   The is_authenticated() check navigates to firstmls.sso.remine.com/dashboard-v2")
+                print(f"   Without SSO cookies, this check will FAIL and trigger 2FA again.")
+                print(f"\n   Root Cause: Cookies were saved AFTER leaving the SSO domain.")
+                print(f"   Fix: Need to save cookies at BOTH dashboard (SSO) AND Remine.")
+                print(f"\n   Action Required:")
+                print(f"   1. Clear cookies: python clear_session.py")
+                print(f"   2. Update to latest code (should have dual cookie save)")
+                print(f"   3. Run main.py with 2FA")
+                print(f"   4. Check that BOTH SSO and Remine cookies are saved")
+            elif has_sso and not has_remine:
                 print(f"\n   ⚠️ WARNING: No Remine cookies found!")
-                print(f"   This will definitely cause authentication to fail.")
+                print(f"   You have SSO cookies but missing Remine session cookies.")
                 print(f"   Cookies were saved before reaching Remine dashboard.")
+            else:
+                print(f"\n   ✗✗ Missing BOTH SSO and Remine cookies!")
+                print(f"   This will definitely cause authentication to fail.")
+                print(f"   Cookies file is incomplete or corrupted.")
 
     except Exception as e:
         print(f"Unable to check session age: {e}")
