@@ -576,32 +576,88 @@ class FMLSAuthenticator:
             logger.debug("=== [END DEBUG] ===\n")
 
             # Step 1: Try to load saved session
+            # DEBUG SESSION PERSISTENCE: Log session check start
+            logger.info("=" * 80)
+            logger.info("[DEBUG SESSION] STEP 1: CHECKING FOR SAVED SESSION")
+            logger.info("=" * 80)
+            # END DEBUG SESSION PERSISTENCE
+
             logger.info("Step 1: Checking for saved session...")
-            if self.session_manager.is_session_valid():
+
+            # DEBUG SESSION PERSISTENCE: Check session validity first
+            session_is_valid = self.session_manager.is_session_valid()
+            logger.info(f"[DEBUG SESSION] Session validity result: {session_is_valid}")
+            # END DEBUG SESSION PERSISTENCE
+
+            if session_is_valid:
                 logger.info("Found valid saved session - attempting to load cookies...")
 
                 # Navigate to domain first (required before adding cookies)
+                # DEBUG SESSION PERSISTENCE: Log navigation for cookie domain
+                logger.info(f"[DEBUG SESSION] Navigating to base domain to enable cookie loading...")
+                logger.info(f"[DEBUG SESSION] Target URL: {self.config['login_url']}")
+                # END DEBUG SESSION PERSISTENCE
+
                 logger.debug(f"[DEBUG] Navigating to login URL to set domain: {self.config['login_url']}")
                 self.driver.get(self.config['login_url'])
+
+                # DEBUG SESSION PERSISTENCE: Log current URL after navigation
+                logger.info(f"[DEBUG SESSION] Current URL after navigation: {self.driver.current_url}")
+                # END DEBUG SESSION PERSISTENCE
+
                 time.sleep(2)
 
                 # Load cookies
-                if self.session_manager.load_cookies(self.driver):
+                # DEBUG SESSION PERSISTENCE: Attempt cookie loading
+                logger.info(f"[DEBUG SESSION] Attempting to load cookies from session manager...")
+                cookie_load_result = self.session_manager.load_cookies(self.driver)
+                logger.info(f"[DEBUG SESSION] Cookie load result: {cookie_load_result}")
+                # END DEBUG SESSION PERSISTENCE
+
+                if cookie_load_result:
                     logger.info("Cookies loaded - verifying authentication status...")
+
+                    # DEBUG SESSION PERSISTENCE: Refresh page to apply cookies
+                    logger.info(f"[DEBUG SESSION] Refreshing page to apply loaded cookies...")
+                    self.driver.refresh()
+                    time.sleep(3)
+                    logger.info(f"[DEBUG SESSION] Current URL after refresh: {self.driver.current_url}")
+                    # END DEBUG SESSION PERSISTENCE
+
                     # Check if session is still valid
-                    if self.is_authenticated():
+                    # DEBUG SESSION PERSISTENCE: Check authentication
+                    logger.info(f"[DEBUG SESSION] Checking if cookies provide valid authentication...")
+                    auth_check_result = self.is_authenticated()
+                    logger.info(f"[DEBUG SESSION] Authentication check result: {auth_check_result}")
+                    # END DEBUG SESSION PERSISTENCE
+
+                    if auth_check_result:
                         logger.info("✓ Successfully authenticated using saved session")
 
                         # Navigate to Remine
                         if self.navigate_to_remine():
                             logger.info("✓ Successfully navigated to Remine dashboard")
+                            # DEBUG SESSION PERSISTENCE: Success path
+                            logger.info(f"[DEBUG SESSION] ✓✓✓ SESSION PERSISTENCE SUCCESSFUL - No 2FA needed! ✓✓✓")
+                            # END DEBUG SESSION PERSISTENCE
                             return True
                         else:
                             logger.warning("Failed to navigate to Remine with saved session - will try fresh login")
+                    else:
+                        # DEBUG SESSION PERSISTENCE: Failed authentication
+                        logger.warning(f"[DEBUG SESSION] Loaded cookies did not provide valid authentication")
+                        logger.warning(f"[DEBUG SESSION] Will proceed with fresh login and 2FA")
+                        # END DEBUG SESSION PERSISTENCE
                 else:
                     logger.info("Failed to load cookies - will perform fresh login")
+                    # DEBUG SESSION PERSISTENCE: Failed cookie loading
+                    logger.info(f"[DEBUG SESSION] Cookie loading failed - cookies may be corrupted or incompatible")
+                    # END DEBUG SESSION PERSISTENCE
             else:
                 logger.info("No valid saved session found - will perform fresh login")
+                # DEBUG SESSION PERSISTENCE: No valid session
+                logger.info(f"[DEBUG SESSION] Reason: Session file doesn't exist, expired, or invalid")
+                # END DEBUG SESSION PERSISTENCE
 
             # Step 2: Check if already authenticated (without cookies)
             logger.info("\nStep 2: Checking if already authenticated...")
@@ -675,7 +731,16 @@ class FMLSAuthenticator:
 
             # Save session cookies
             logger.info("\nStep 3.6: Saving session cookies for future use...")
-            self.session_manager.save_cookies(self.driver, domain='remine.com')
+            # DEBUG SESSION PERSISTENCE: Save cookies at the right time
+            logger.info(f"[DEBUG SESSION] === SAVING COOKIES FOR PERSISTENCE ===")
+            logger.info(f"[DEBUG SESSION] Current URL before save: {self.driver.current_url}")
+            logger.info(f"[DEBUG SESSION] Saving cookies WITHOUT domain filter to capture all auth cookies")
+
+            # CRITICAL FIX: Don't filter by domain - save ALL cookies from authenticated session
+            # The original code filtered by 'remine.com' but auth cookies may be on other domains
+            self.session_manager.save_cookies(self.driver, domain=None)
+            logger.info(f"[DEBUG SESSION] Cookie save operation completed")
+            # END DEBUG SESSION PERSISTENCE
             logger.info("✓ Cookies saved")
 
             # Navigate to Remine
