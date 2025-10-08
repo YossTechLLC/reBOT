@@ -184,12 +184,15 @@ class FMLSAuthenticator:
 
             # Try multiple possible selectors for username/email field (Auth0 variations)
             username_selectors = [
-                'input[type="email"]',
-                'input[name="username"]',
-                'input[name="email"]',
-                '#username',
-                'input[id="username"]',
-                self.config['login_id_input']  # Fallback to config
+                'input#loginId',                # FMLS specific - exact match
+                'input[name="loginId"]',        # FMLS specific - by name
+                '#loginId',                     # FMLS specific - by ID
+                'input[type="email"]',          # Auth0 generic
+                'input[name="username"]',       # Auth0 generic
+                'input[name="email"]',          # Auth0 generic
+                '#username',                    # Auth0 generic
+                'input[id="username"]',         # Auth0 generic
+                self.config['login_id_input']   # Fallback to config
             ]
 
             login_input = None
@@ -224,11 +227,12 @@ class FMLSAuthenticator:
 
             # Try multiple possible selectors for password field
             password_selectors = [
-                'input[type="password"]',
-                'input[name="password"]',
-                '#password',
-                'input[id="password"]',
-                self.config['password_input']  # Fallback to config
+                'input#password',               # FMLS specific - exact match
+                '#password',                    # FMLS specific - by ID
+                'input[name="password"]',       # FMLS/Auth0 - by name
+                'input[type="password"]',       # Generic password field
+                'input[id="password"]',         # Generic by ID
+                self.config['password_input']   # Fallback to config
             ]
 
             password_input = None
@@ -263,11 +267,13 @@ class FMLSAuthenticator:
 
             # Try multiple possible selectors for submit button
             submit_selectors = [
-                'button[type="submit"]',
-                'button[name="action"]',
-                'button.auth0-lock-submit',
-                'input[type="submit"]',
-                self.config['login_button']  # Fallback to config
+                'button#btn-login',             # FMLS specific (from original config)
+                'button[type="submit"]',        # Generic submit button
+                'button[name="action"]',        # Auth0 pattern
+                'button.btn-primary',           # Bootstrap primary button
+                'button.auth0-lock-submit',     # Auth0 specific
+                'input[type="submit"]',         # Input submit
+                self.config['login_button']     # Fallback to config
             ]
 
             login_button = None
