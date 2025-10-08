@@ -94,43 +94,41 @@ class FMLSAuthenticator:
 
     def navigate_to_login(self) -> bool:
         """
-        Navigate from home page to login page.
+        Navigate directly to login page.
 
         Returns:
             True if navigation successful, False otherwise
         """
         try:
-            logger.info("Navigating to FMLS login page...")
+            logger.info("Navigating directly to FMLS login page...")
 
-            # Go to home page
-            home_url = self.config['home_url']
-            self.driver.get(home_url)
+            # Go directly to login URL (skip home page)
+            login_url = self.config['login_url']
+            logger.debug(f"[DEBUG] Navigating to: {login_url}")
+
+            self.driver.get(login_url)
 
             # Wait for page to load
+            logger.debug("[DEBUG] Waiting for page to load...")
+            time.sleep(3)
+
+            # Wait for page to be ready
             wait = WebDriverWait(self.driver, self.config.get('login_timeout', 30))
+            wait.until(lambda driver: driver.execute_script("return document.readyState") == "complete")
 
-            # Find and click the login link
-            login_link_selector = self.config['login_link_selector']
-            logger.debug(f"Looking for login link: {login_link_selector}")
-
-            login_link = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, login_link_selector))
-            )
-
-            login_link.click()
-            logger.info("Clicked login link")
-
-            # Wait for login page to load
-            time.sleep(2)
+            logger.info("✓ Reached login page directly")
+            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
 
             return True
 
         except TimeoutException:
-            logger.error("Timeout waiting for login link")
+            logger.error("Timeout waiting for login page to load")
+            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
             return False
 
         except Exception as e:
             logger.error(f"Error navigating to login page: {e}")
+            logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
             return False
 
     def perform_login(self, login_id: str, password: str) -> bool:
