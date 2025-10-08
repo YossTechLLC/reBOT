@@ -357,16 +357,30 @@ class FMLSAuthenticator:
             logger.info("Starting FMLS authentication process")
             logger.info("=" * 80)
 
+            # DEBUG: Log configuration being used
+            logger.debug("=== [DEBUG] Authentication Configuration ===")
+            logger.debug(f"Home URL: {self.config.get('home_url')}")
+            logger.debug(f"Login URL: {self.config.get('login_url')}")
+            logger.debug(f"Dashboard URL: {self.config.get('dashboard_url')}")
+            logger.debug(f"Remine Daily URL: {self.config.get('remine_daily_url')}")
+            logger.debug(f"GCP Project ID: {self.secret_client.project_id}")
+            logger.debug(f"Login Secret: {self.login_secret_name}")
+            logger.debug(f"Password Secret: {self.password_secret_name}")
+            logger.debug("=== [END DEBUG] ===\n")
+
             # Step 1: Try to load saved session
+            logger.info("Step 1: Checking for saved session...")
             if self.session_manager.is_session_valid():
                 logger.info("Found valid saved session - attempting to load cookies...")
 
                 # Navigate to domain first (required before adding cookies)
+                logger.debug(f"[DEBUG] Navigating to login URL to set domain: {self.config['login_url']}")
                 self.driver.get(self.config['login_url'])
                 time.sleep(2)
 
                 # Load cookies
                 if self.session_manager.load_cookies(self.driver):
+                    logger.info("Cookies loaded - verifying authentication status...")
                     # Check if session is still valid
                     if self.is_authenticated():
                         logger.info("✓ Successfully authenticated using saved session")
@@ -375,8 +389,15 @@ class FMLSAuthenticator:
                         if self.navigate_to_remine():
                             logger.info("✓ Successfully navigated to Remine dashboard")
                             return True
+                        else:
+                            logger.warning("Failed to navigate to Remine with saved session - will try fresh login")
+                else:
+                    logger.info("Failed to load cookies - will perform fresh login")
+            else:
+                logger.info("No valid saved session found - will perform fresh login")
 
             # Step 2: Check if already authenticated (without cookies)
+            logger.info("\nStep 2: Checking if already authenticated...")
             if self.is_authenticated():
                 logger.info("Already authenticated - skipping login")
 
@@ -386,47 +407,74 @@ class FMLSAuthenticator:
                     return True
 
             # Step 3: Perform fresh login
-            logger.info("Performing fresh login...")
+            logger.info("\nStep 3: Performing fresh login...")
 
             # Retrieve credentials from Secret Manager
-            logger.info("Retrieving credentials from Google Secret Manager...")
+            logger.info("Step 3.1: Retrieving credentials from Google Secret Manager...")
+            logger.debug(f"[DEBUG] Attempting to access project: {self.secret_client.project_id}")
+            logger.debug(f"[DEBUG] Login secret: projects/{self.secret_client.project_id}/secrets/{self.login_secret_name}/versions/latest")
+            logger.debug(f"[DEBUG] Password secret: projects/{self.secret_client.project_id}/secrets/{self.password_secret_name}/versions/latest")
+
             credentials = self.secret_client.get_credentials(
                 self.login_secret_name,
                 self.password_secret_name
             )
 
             if not credentials:
-                logger.error("Failed to retrieve credentials from Secret Manager")
+                logger.error("❌ Failed to retrieve credentials from Secret Manager")
+                logger.error("Check:")
+                logger.error("  1. GOOGLE_APPLICATION_CREDENTIALS environment variable is set")
+                logger.error("  2. Service account has 'Secret Manager Secret Accessor' role")
+                logger.error("  3. Secret names are correct in configuration")
+                logger.error("  4. GCP project ID is correct")
                 return False
+
+            logger.info("✓ Credentials retrieved successfully")
 
             # Navigate to login page
+            logger.info("\nStep 3.2: Navigating to login page...")
             if not self.navigate_to_login():
-                logger.error("Failed to navigate to login page")
+                logger.error("❌ Failed to navigate to login page")
                 return False
+
+            logger.info("✓ Reached login page")
 
             # Perform login
+            logger.info("\nStep 3.3: Submitting login credentials...")
             if not self.perform_login(credentials['login_id'], credentials['password']):
-                logger.error("Failed to submit login form")
+                logger.error("❌ Failed to submit login form")
                 return False
+
+            logger.info("✓ Login form submitted")
 
             # Handle 2FA
+            logger.info("\nStep 3.4: Handling 2FA...")
             if not self.handle_2fa():
-                logger.error("Failed to complete 2FA")
+                logger.error("❌ Failed to complete 2FA")
                 return False
+
+            logger.info("✓ 2FA completed")
 
             # Verify we reached dashboard
+            logger.info("\nStep 3.5: Verifying dashboard access...")
             time.sleep(3)
             if not self.is_authenticated():
-                logger.error("Login appeared successful but dashboard not accessible")
+                logger.error("❌ Login appeared successful but dashboard not accessible")
+                logger.debug(f"[DEBUG] Current URL: {self.driver.current_url}")
+                logger.debug(f"[DEBUG] Page title: {self.driver.title}")
                 return False
 
+            logger.info("✓ Dashboard accessible")
+
             # Save session cookies
-            logger.info("Saving session cookies for future use...")
+            logger.info("\nStep 3.6: Saving session cookies for future use...")
             self.session_manager.save_cookies(self.driver, domain='remine.com')
+            logger.info("✓ Cookies saved")
 
             # Navigate to Remine
+            logger.info("\nStep 3.7: Navigating to Remine product...")
             if not self.navigate_to_remine():
-                logger.error("Failed to navigate to Remine dashboard")
+                logger.error("❌ Failed to navigate to Remine dashboard")
                 return False
 
             logger.info("=" * 80)
@@ -436,7 +484,8 @@ class FMLSAuthenticator:
             return True
 
         except Exception as e:
-            logger.error(f"Authentication failed with error: {e}")
+            logger.error(f"❌ Authentication failed with unexpected error: {e}", exc_info=True)
+            logger.debug(f"[DEBUG] Current URL at error: {self.driver.current_url if self.driver else 'N/A'}")
             return False
 
 

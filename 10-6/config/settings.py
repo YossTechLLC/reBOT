@@ -124,7 +124,9 @@ class Settings:
     ]
 
     # Logging configuration
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    # DEBUG: Temporarily set to DEBUG for authentication troubleshooting
+    # TODO: Change back to INFO once authentication is working
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")  # Was: "INFO"
     LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 

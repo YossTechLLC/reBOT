@@ -83,7 +83,13 @@ def authenticate_fmls(scraper: PropertyScraper) -> bool:
         logger.info("FMLS AUTHENTICATION")
         logger.info("=" * 80)
 
+        # DEBUG: Verify scraper has driver
+        logger.debug(f"[DEBUG] Scraper driver initialized: {scraper.driver is not None}")
+        if scraper.driver:
+            logger.debug(f"[DEBUG] Current browser URL: {scraper.driver.current_url}")
+
         # Create authenticator
+        logger.debug("[DEBUG] Creating authenticator instance...")
         authenticator = create_authenticator(
             driver=scraper.driver,
             cookie_dir=Settings.COOKIES_DIR,
@@ -92,17 +98,21 @@ def authenticate_fmls(scraper: PropertyScraper) -> bool:
             password_secret=Settings.SECRET_PASSWORD,
             config=Settings.get_fmls_config()
         )
+        logger.debug("[DEBUG] Authenticator created successfully")
 
         # Perform authentication
+        logger.info("Starting authentication process...")
         if authenticator.authenticate():
             logger.info("✓ FMLS authentication completed successfully")
             return True
         else:
-            logger.error("✗ FMLS authentication failed")
+            logger.error("❌ FMLS authentication failed")
+            logger.error("Review the logs above for specific error details")
             return False
 
     except Exception as e:
-        logger.error(f"Error during FMLS authentication: {e}", exc_info=True)
+        logger.error(f"❌ Unexpected error during FMLS authentication: {e}", exc_info=True)
+        logger.debug(f"[DEBUG] Exception type: {type(e).__name__}")
         return False
 
 

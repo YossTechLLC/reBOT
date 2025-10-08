@@ -36,14 +36,21 @@ class SecretManagerClient:
         """
         if self.client is None:
             try:
+                # DEBUG: Check for credentials
+                import os
+                creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+                logger.debug(f"[DEBUG] GOOGLE_APPLICATION_CREDENTIALS: {creds_path if creds_path else 'Not set (using ADC)'}")
+
                 self.client = secretmanager.SecretManagerServiceClient()
                 logger.info("Secret Manager client initialized successfully using ADC")
+                logger.debug("[DEBUG] Client initialization method: Application Default Credentials")
             except Exception as e:
-                logger.error(f"Failed to initialize Secret Manager client: {e}")
-                logger.error(
-                    "Ensure GOOGLE_APPLICATION_CREDENTIALS is set or "
-                    "you're running in an environment with ADC configured"
-                )
+                logger.error(f"❌ Failed to initialize Secret Manager client: {e}")
+                logger.error("Troubleshooting steps:")
+                logger.error("  1. Check GOOGLE_APPLICATION_CREDENTIALS environment variable:")
+                logger.error(f"     Current value: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'NOT SET')}")
+                logger.error("  2. Or authenticate with: gcloud auth application-default login")
+                logger.error("  3. Verify you have access to the GCP project")
                 raise
 
         return self.client
@@ -75,7 +82,7 @@ class SecretManagerClient:
             # Build the resource name
             name = f"projects/{self.project_id}/secrets/{secret_name}/versions/{version}"
 
-            logger.debug(f"Retrieving secret: {name}")
+            logger.debug(f"[DEBUG] Retrieving secret: {name}")
 
             # Access the secret version
             response = client.access_secret_version(request={"name": name})
@@ -83,25 +90,30 @@ class SecretManagerClient:
             # Decode the secret payload
             secret_value = response.payload.data.decode('UTF-8')
 
-            logger.info(f"Successfully retrieved secret: {secret_name}")
+            logger.info(f"✓ Successfully retrieved secret: {secret_name}")
+            logger.debug(f"[DEBUG] Secret value length: {len(secret_value)} characters")
             return secret_value
 
         except gcp_exceptions.NotFound:
-            logger.error(
-                f"Secret not found: {secret_name} in project {self.project_id}. "
-                f"Please verify the secret exists in Google Secret Manager."
-            )
+            logger.error(f"❌ Secret not found: {secret_name} in project {self.project_id}")
+            logger.error(f"Full path: {name}")
+            logger.error("Verify the secret exists with: gcloud secrets list --project={self.project_id}")
             return None
 
         except gcp_exceptions.PermissionDenied:
-            logger.error(
-                f"Permission denied accessing secret: {secret_name}. "
-                f"Ensure the service account has 'Secret Manager Secret Accessor' role."
-            )
+            logger.error(f"❌ Permission denied accessing secret: {secret_name}")
+            logger.error(f"Full path: {name}")
+            logger.error("Ensure the service account has 'Secret Manager Secret Accessor' role")
+            logger.error("Grant access with:")
+            logger.error(f"  gcloud secrets add-iam-policy-binding {secret_name} \\")
+            logger.error(f"    --member='serviceAccount:YOUR_SA@{self.project_id}.iam.gserviceaccount.com' \\")
+            logger.error(f"    --role='roles/secretmanager.secretAccessor'")
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving secret {secret_name}: {e}")
+            logger.error(f"❌ Unexpected error retrieving secret {secret_name}: {e}")
+            logger.debug(f"[DEBUG] Error type: {type(e).__name__}")
+            logger.debug(f"[DEBUG] Error details: {str(e)}")
             return None
 
     def get_credentials(
