@@ -17,5 +17,8 @@ lxml==4.9.3
 # Utilities
 requests==2.31.0
 
+# Google Cloud integration
+google-cloud-secret-manager>=2.16.0
+
 # Optional: For better performance
 # numpy==1.26.2

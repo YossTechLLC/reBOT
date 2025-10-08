@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import Settings
-from src import DatabaseManager, ExcelHandler, PropertyScraper, setup_logger
+from src import DatabaseManager, ExcelHandler, PropertyScraper, setup_logger, create_authenticator
 from src.utils import Timer, print_progress_bar
 
 logger = None
@@ -61,6 +61,48 @@ def initialize_application():
             logger.error(f"Initialization failed: {e}")
         else:
             print(f"ERROR: Initialization failed: {e}")
+        return False
+
+
+def authenticate_fmls(scraper: PropertyScraper) -> bool:
+    """
+    Authenticate with FMLS if authentication is enabled.
+
+    Args:
+        scraper: PropertyScraper instance with initialized driver
+
+    Returns:
+        True if authentication successful or not required, False otherwise
+    """
+    if not Settings.ENABLE_FMLS_AUTH:
+        logger.info("FMLS authentication disabled - skipping")
+        return True
+
+    try:
+        logger.info("\n" + "=" * 80)
+        logger.info("FMLS AUTHENTICATION")
+        logger.info("=" * 80)
+
+        # Create authenticator
+        authenticator = create_authenticator(
+            driver=scraper.driver,
+            cookie_dir=Settings.COOKIES_DIR,
+            gcp_project_id=Settings.GCP_PROJECT_ID,
+            login_secret=Settings.SECRET_LOGIN_ID,
+            password_secret=Settings.SECRET_PASSWORD,
+            config=Settings.get_fmls_config()
+        )
+
+        # Perform authentication
+        if authenticator.authenticate():
+            logger.info("✓ FMLS authentication completed successfully")
+            return True
+        else:
+            logger.error("✗ FMLS authentication failed")
+            return False
+
+    except Exception as e:
+        logger.error(f"Error during FMLS authentication: {e}", exc_info=True)
         return False
 
 
@@ -273,11 +315,37 @@ def display_summary(db_manager: DatabaseManager):
 def main():
     """Main application entry point."""
     exit_code = 0
+    scraper = None
 
     try:
         # Initialize application
         if not initialize_application():
             return 1
+
+        # If FMLS auth is enabled, we need to authenticate first
+        if Settings.ENABLE_FMLS_AUTH:
+            logger.info("\n" + "=" * 80)
+            logger.info("FMLS authentication is enabled")
+            logger.info("Initializing browser for authentication...")
+            logger.info("=" * 80)
+
+            # Initialize scraper (which starts the browser)
+            scraper = PropertyScraper(
+                target_url=Settings.TARGET_URL,
+                headless=Settings.HEADLESS_MODE,
+                window_size=Settings.BROWSER_WINDOW_SIZE,
+                user_agent=Settings.USER_AGENT,
+                page_load_timeout=Settings.PAGE_LOAD_TIMEOUT,
+                element_wait_timeout=Settings.ELEMENT_WAIT_TIMEOUT
+            )
+            scraper.start()
+
+            # Authenticate with FMLS
+            if not authenticate_fmls(scraper):
+                logger.error("Failed to authenticate with FMLS - cannot continue")
+                return 1
+
+            logger.info("\n✓ Ready to begin scraping operations\n")
 
         # Validate input file and get addresses
         success, addresses = validate_input_file()
@@ -290,15 +358,34 @@ def main():
             timeout=Settings.DB_TIMEOUT
         ) as db_manager:
 
-            # Process addresses with timer
-            with Timer("Total processing time", logger):
-                results = process_addresses(addresses, db_manager)
+            # If we didn't create a scraper for auth, create it now
+            if scraper is None:
+                # Process addresses with timer
+                with Timer("Total processing time", logger):
+                    results = process_addresses(addresses, db_manager)
+            else:
+                # Use existing authenticated scraper
+                # For now, we'll just display success message
+                # The actual scraping implementation will be in your next prompt
+                logger.info("\n" + "=" * 80)
+                logger.info("AUTHENTICATION TEST COMPLETED")
+                logger.info("=" * 80)
+                logger.info("\n✓ Successfully authenticated with FMLS")
+                logger.info("✓ Browser session is active and ready")
+                logger.info("✓ All authentication systems working correctly")
+                logger.info("\nNext steps: Implement FMLS-specific scraping logic")
+                logger.info("=" * 80)
 
-            # Export results to Excel
-            export_results(results)
+                # For now, return empty results
+                results = []
 
-            # Display summary
-            display_summary(db_manager)
+            # Export results to Excel (if any)
+            if results:
+                export_results(results)
+
+            # Display summary (if any results)
+            if results:
+                display_summary(db_manager)
 
         logger.info("\n" + "=" * 80)
         logger.info("Application completed successfully!")
@@ -313,6 +400,14 @@ def main():
         exit_code = 1
 
     finally:
+        # Clean up scraper if it was created
+        if scraper:
+            try:
+                scraper.stop()
+                logger.info("Browser session closed")
+            except Exception as e:
+                logger.warning(f"Error closing browser: {e}")
+
         if logger:
             logger.info(f"Log file saved to: {Settings.LOG_FILE}")
 

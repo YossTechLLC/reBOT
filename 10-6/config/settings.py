@@ -33,10 +33,59 @@ class Settings:
     OUTPUT_EXCEL = OUTPUT_DIR / os.getenv("OUTPUT_EXCEL_NAME", "output_results.xlsx")
     DATABASE_PATH = DATABASE_DIR / os.getenv("DATABASE_NAME", "scrape.db")
     LOG_FILE = LOGS_DIR / "scraper.log"
+    COOKIES_DIR = DATA_DIR / "cookies"
+
+    # Ensure cookies directory exists
+    COOKIES_DIR.mkdir(parents=True, exist_ok=True)
 
     # Excel configuration
     ADDRESS_COLUMN = os.getenv("ADDRESS_COLUMN", "address")
     EXCEL_SHEET_NAME = os.getenv("EXCEL_SHEET_NAME", "Sheet1")
+
+    # =============================================================================
+    # FMLS AUTHENTICATION CONFIGURATION
+    # =============================================================================
+
+    # Google Cloud Project ID for Secret Manager
+    GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "291176869049")
+
+    # Secret names in Google Secret Manager
+    SECRET_LOGIN_ID = os.getenv("SECRET_LOGIN_ID", "reBOT_LOGIN")
+    SECRET_PASSWORD = os.getenv("SECRET_PASSWORD", "reBOT_PASSWORD")
+
+    # FMLS URLs
+    FMLS_HOME_URL = os.getenv("FMLS_HOME_URL", "https://firstmls.com/")
+    FMLS_LOGIN_URL = os.getenv("FMLS_LOGIN_URL", "https://firstmls.sso.remine.com")
+    FMLS_DASHBOARD_URL = os.getenv("FMLS_DASHBOARD_URL", "https://firstmls.sso.remine.com/dashboard-v2")
+    FMLS_REMINE_URL = os.getenv("FMLS_REMINE_URL", "https://fmls.remine.com")
+    FMLS_REMINE_DAILY_URL = os.getenv("FMLS_REMINE_DAILY_URL", "https://fmls.remine.com/daily")
+
+    # Authentication timeouts (in seconds)
+    OTP_TIMEOUT = int(os.getenv("OTP_TIMEOUT", "120"))
+    LOGIN_TIMEOUT = int(os.getenv("LOGIN_TIMEOUT", "30"))
+
+    # FMLS CSS Selectors
+    FMLS_LOGIN_LINK_SELECTOR = os.getenv(
+        "FMLS_LOGIN_LINK_SELECTOR",
+        'a[href="https://firstmls.sso.remine.com"]'
+    )
+    FMLS_LOGIN_ID_INPUT = os.getenv("FMLS_LOGIN_ID_INPUT", "input[name='username']")
+    FMLS_PASSWORD_INPUT = os.getenv("FMLS_PASSWORD_INPUT", "input[name='password']")
+    FMLS_LOGIN_BUTTON = os.getenv("FMLS_LOGIN_BUTTON", "button#btn-login")
+    FMLS_OTP_INPUT = os.getenv("FMLS_OTP_INPUT", "input#otp-input")
+    FMLS_REMEMBER_CHECKBOX = os.getenv("FMLS_REMEMBER_CHECKBOX", "input#remember-browser-checkbox-2")
+    FMLS_OTP_CONTINUE_BUTTON = os.getenv("FMLS_OTP_CONTINUE_BUTTON", "button#btn-verify-login-otp")
+    FMLS_REMINE_PRODUCT_LINK = os.getenv(
+        "FMLS_REMINE_PRODUCT_LINK",
+        'a._productItem_15qlz_1[href="https://fmls.remine.com"]'
+    )
+
+    # FMLS Authentication feature flag
+    ENABLE_FMLS_AUTH = os.getenv("ENABLE_FMLS_AUTH", "true").lower() == "true"
+
+    # =============================================================================
+    # WEB SCRAPING CONFIGURATION
+    # =============================================================================
 
     # Web scraping configuration
     TARGET_URL = os.getenv("TARGET_URL", "https://example.com/search")
@@ -109,6 +158,32 @@ class Settings:
         return True
 
     @classmethod
+    def get_fmls_config(cls):
+        """
+        Get FMLS authentication configuration as a dictionary.
+
+        Returns:
+            Dictionary with FMLS configuration
+        """
+        return {
+            'home_url': cls.FMLS_HOME_URL,
+            'login_url': cls.FMLS_LOGIN_URL,
+            'dashboard_url': cls.FMLS_DASHBOARD_URL,
+            'remine_url': cls.FMLS_REMINE_URL,
+            'remine_daily_url': cls.FMLS_REMINE_DAILY_URL,
+            'login_link_selector': cls.FMLS_LOGIN_LINK_SELECTOR,
+            'login_id_input': cls.FMLS_LOGIN_ID_INPUT,
+            'password_input': cls.FMLS_PASSWORD_INPUT,
+            'login_button': cls.FMLS_LOGIN_BUTTON,
+            'otp_input': cls.FMLS_OTP_INPUT,
+            'remember_checkbox': cls.FMLS_REMEMBER_CHECKBOX,
+            'otp_continue_button': cls.FMLS_OTP_CONTINUE_BUTTON,
+            'remine_product_link': cls.FMLS_REMINE_PRODUCT_LINK,
+            'otp_timeout': cls.OTP_TIMEOUT,
+            'login_timeout': cls.LOGIN_TIMEOUT,
+        }
+
+    @classmethod
     def display_config(cls):
         """Display current configuration (for debugging)."""
         config = {
@@ -121,5 +196,6 @@ class Settings:
             "Delay Range": f"{cls.MIN_DELAY_BETWEEN_REQUESTS}-{cls.MAX_DELAY_BETWEEN_REQUESTS}s",
             "Max Retries": cls.MAX_RETRIES,
             "Log Level": cls.LOG_LEVEL,
+            "FMLS Auth Enabled": cls.ENABLE_FMLS_AUTH,
         }
         return config
