@@ -255,18 +255,40 @@ def show_recommendations(cookie_file, cookie_data):
         print("   Action: Delete cookie file and login again.")
         return
 
+    # CRITICAL CHECK: Number of cookies
+    cookie_count = len(cookies)
+    print(f"\n🔍 CRITICAL CHECK: Cookie Count")
+    print(f"   Found: {cookie_count} cookies")
+
+    if cookie_count < 5:
+        print(f"\n   ❌ TOO FEW COOKIES!")
+        print(f"   Problem: Only {cookie_count} cookie(s) were saved.")
+        print(f"   Expected: 10-20+ cookies after full authentication.")
+        print(f"\n   Root Cause: Cookies were likely saved BEFORE completing")
+        print(f"              the full authentication flow (before reaching Remine).")
+        print(f"\n   ⚠️  This is why session persistence is failing!")
+        print(f"\n   Action Required:")
+        print(f"   1. Delete the incomplete cookie file:")
+        print(f"      python clear_session.py")
+        print(f"   2. Run main.py and complete FULL 2FA login")
+        print(f"   3. Let the process complete (reach Remine dashboard)")
+        print(f"   4. Cookies will be saved AFTER full authentication")
+        print(f"   5. Next run will have 10-20+ cookies and work without 2FA")
+        return
+    else:
+        print(f"   ✓ Good! You have enough cookies for authentication.")
+
     # Check session age
     try:
         saved_at = datetime.fromisoformat(saved_at_str)
         age_hours = (datetime.now() - saved_at).total_seconds() / 3600
 
         if age_hours >= 720:  # 30 days
-            print("📝 Session has expired (>30 days old).")
+            print("\n📝 Session has expired (>30 days old).")
             print("   Action: Run main.py - you'll need to login with 2FA again.")
             print("   New cookies will be saved after successful login.")
         else:
-            print("✓ Everything looks good!")
-            print("   Session should work without 2FA.")
+            print("\n✓ Session age is good (not expired).")
             print("\n   If you're still being asked for 2FA, check:")
             print("   1. Cookie domains match the login domain")
             print("   2. Cookies aren't being cleared by browser settings")
@@ -274,16 +296,19 @@ def show_recommendations(cookie_file, cookie_data):
 
             # Check domain mismatch
             domains = set(c.get('domain', '') for c in cookies)
-            expected_domains = ['remine.com', 'sso.remine.com', 'firstmls.sso.remine.com']
+            expected_domains = ['remine.com', 'sso.remine.com', 'firstmls.sso.remine.com', 'fmls.remine.com']
 
-            print(f"\n   Cookie domains found: {', '.join(domains)}")
+            print(f"\n   Cookie domains found: {', '.join(sorted(domains))}")
             print(f"   Expected domains: {', '.join(expected_domains)}")
 
-            has_expected = any(any(exp in d for exp in expected_domains) for d in domains)
-            if not has_expected:
-                print("\n   ⚠️ WARNING: No cookies match expected domains!")
-                print("   This may cause authentication to fail.")
-                print("   Domain filter used during save: " + str(cookie_data.get('domain')))
+            # Check if we have Remine cookies (most important)
+            has_remine = any('remine.com' in d for d in domains)
+            if has_remine:
+                print(f"\n   ✓ Found Remine cookies - authentication should work!")
+            else:
+                print(f"\n   ⚠️ WARNING: No Remine cookies found!")
+                print(f"   This will definitely cause authentication to fail.")
+                print(f"   Cookies were saved before reaching Remine dashboard.")
 
     except Exception as e:
         print(f"Unable to check session age: {e}")

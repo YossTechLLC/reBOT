@@ -166,6 +166,16 @@ class SessionManager:
             logger.info(f"[DEBUG SESSION] Cookie domains to load: {', '.join(cookie_domains)}")
             # END DEBUG SESSION PERSISTENCE
 
+            # DEBUG SESSION PERSISTENCE: Check current URL for domain matching
+            current_url = driver.current_url
+            logger.info(f"[DEBUG SESSION] Current URL for cookie loading: {current_url}")
+
+            # Extract current domain from URL
+            from urllib.parse import urlparse
+            current_domain = urlparse(current_url).netloc
+            logger.info(f"[DEBUG SESSION] Current domain: {current_domain}")
+            # END DEBUG SESSION PERSISTENCE
+
             # Add cookies to browser
             loaded_count = 0
             skipped_count = 0
@@ -180,8 +190,33 @@ class SessionManager:
                     cookie_copy.pop('sameSite', None)  # Can cause issues
                     cookie_copy.pop('expiry', None)     # Let browser handle expiration
 
+                    # DEBUG SESSION PERSISTENCE: Check domain compatibility
+                    cookie_domain = cookie.get('domain', '')
+                    cookie_name = cookie.get('name', 'unknown')
+
+                    # Clean domain (remove leading dot)
+                    clean_domain = cookie_domain.lstrip('.')
+
+                    # Check if cookie domain matches current page domain
+                    # Cookie domain should be a suffix of current domain or vice versa
+                    domain_match = (
+                        clean_domain in current_domain or
+                        current_domain.endswith(clean_domain) or
+                        clean_domain == current_domain
+                    )
+
+                    logger.debug(f"[DEBUG SESSION] Cookie '{cookie_name}': domain={cookie_domain}, current={current_domain}, match={domain_match}")
+
+                    if not domain_match:
+                        skipped_count += 1
+                        reason = f"Domain mismatch: cookie domain '{cookie_domain}' doesn't match current page '{current_domain}'"
+                        skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                        logger.debug(f"[DEBUG SESSION] Skipping cookie '{cookie_name}': {reason}")
+                        continue
+                    # END DEBUG SESSION PERSISTENCE
+
                     # DEBUG SESSION PERSISTENCE: Log cookie being added
-                    logger.debug(f"[DEBUG SESSION] Adding cookie: name={cookie.get('name')}, domain={cookie.get('domain')}")
+                    logger.debug(f"[DEBUG SESSION] Adding cookie: name={cookie_name}, domain={cookie_domain}")
                     # END DEBUG SESSION PERSISTENCE
 
                     driver.add_cookie(cookie_copy)
