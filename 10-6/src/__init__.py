@@ -9,6 +9,7 @@ from .scraper import PropertyScraper
 from .utils import setup_logger, retry_on_exception
 from .authenticator import FMLSAuthenticator, create_authenticator
 from .session_manager import SessionManager, create_session_manager
+from .enhanced_session_manager import EnhancedSessionManager, create_enhanced_session_manager
 from .gcp_secrets import SecretManagerClient, get_fmls_credentials
 
 __all__ = [
@@ -21,6 +22,8 @@ __all__ = [
     'create_authenticator',
     'SessionManager',
     'create_session_manager',
+    'EnhancedSessionManager',
+    'create_enhanced_session_manager',
     'SecretManagerClient',
     'get_fmls_credentials',
 ]
