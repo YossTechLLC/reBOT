@@ -1,0 +1,102 @@
+{
+  "total_cookies": 25,
+  "auth_cookies": [
+    {
+      "domain": "firstmls.com",
+      "name": "zabUserId",
+      "cookie_domain": "firstmls.com",
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "_gid",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "__zlcmid",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "auth0",
+      "cookie_domain": "firstmls-login.sso.remine.com",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "auth0_compat",
+      "cookie_domain": "firstmls-login.sso.remine.com",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "did_compat",
+      "cookie_domain": "firstmls-login.sso.remine.com",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "aws-waf-token",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "fmls.remine.com",
+      "name": "did",
+      "cookie_domain": "firstmls-login.sso.remine.com",
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "domain": "remine.com",
+      "name": "aws-waf-token",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "remine.com",
+      "name": "__zlcmid",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "domain": "remine.com",
+      "name": "_gid",
+      "cookie_domain": ".remine.com",
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "total_localStorage": 2,
+  "total_sessionStorage": 2,
+  "auth_storage": [
+    {
+      "domain": "firstmls.sso.remine.com",
+      "key": "a0.spajs.txs.MlYefPoR5ztZdoyauZRB54OdKzMIDVKJ",
+      "value_preview": "{\"nonce\":\"aC1Na0t0Zm45bURrOWVtTFpaa2RlbG82bllJaHhETnhGMms1ZkZsU3loUg==\",\"code_verifier\":\"3FJxr6Osdij..."
+    }
+  ]
+}

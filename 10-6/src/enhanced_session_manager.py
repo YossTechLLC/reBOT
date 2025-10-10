@@ -1,30 +1,27 @@
 """
-Enhanced Session Manager with Full Browser State Persistence
+Enhanced Session Manager with Chrome DevTools Protocol (CDP)
 
-This module saves and restores:
-1. Cookies (all domains)
-2. localStorage (all domains)
-3. sessionStorage (all domains)
-4. Browser fingerprint consistency
-5. User-agent and metadata
+This module uses CDP to capture and restore the COMPLETE browser state:
+1. ALL cookies from ALL domains (via CDP Network.getAllCookies)
+2. localStorage from current page
+3. sessionStorage from current page
 
-This is the CORRECT way to persist authentication state across runs.
+This approach is MUCH faster and more reliable than navigating to multiple domains.
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from datetime import datetime
 from selenium import webdriver
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 
 class EnhancedSessionManager:
     """
-    Manages complete browser session persistence including cookies and storage.
+    Manages complete browser session persistence using Chrome DevTools Protocol.
     """
 
     def __init__(self, session_dir: Path, session_name: str = "fmls_session"):
@@ -48,128 +45,129 @@ class EnhancedSessionManager:
     def save_complete_state(
         self,
         driver: webdriver.Chrome,
-        domains: List[str],
         user_agent: Optional[str] = None
     ) -> bool:
         """
-        Save complete browser state including cookies and storage from all domains.
+        Save complete browser state using Chrome DevTools Protocol.
+
+        Uses CDP to get ALL cookies from ALL domains in a single call.
+        This is much faster and more reliable than navigating to each domain.
 
         Args:
             driver: Selenium WebDriver instance
-            domains: List of domain URLs to capture state from
             user_agent: User agent string (for consistency check)
 
         Returns:
             True if saved successfully, False otherwise
         """
         try:
-            logger.info(f"[SESSION] === SAVING COMPLETE BROWSER STATE ===")
-            logger.info(f"[SESSION] Capturing state from {len(domains)} domains")
+            logger.info("=== SAVING COMPLETE BROWSER STATE (CDP) ===")
 
+            current_url = driver.current_url
+            logger.info(f"Current URL: {current_url}")
+
+            # Use CDP to get ALL cookies from ALL domains in one call
+            logger.info("Getting all cookies via Chrome DevTools Protocol...")
+            try:
+                cdp_result = driver.execute_cdp_cmd('Network.getAllCookies', {})
+                all_cookies = cdp_result.get('cookies', [])
+                logger.info(f"✓ Retrieved {len(all_cookies)} cookies from all domains via CDP")
+            except Exception as e:
+                logger.error(f"Failed to get cookies via CDP: {e}")
+                return False
+
+            # Get localStorage from current page
+            try:
+                local_storage = driver.execute_script("""
+                    let items = {};
+                    try {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            let key = localStorage.key(i);
+                            items[key] = localStorage.getItem(key);
+                        }
+                    } catch(e) {}
+                    return items;
+                """)
+                logger.info(f"✓ Retrieved {len(local_storage)} localStorage items")
+            except Exception as e:
+                logger.warning(f"Failed to get localStorage: {e}")
+                local_storage = {}
+
+            # Get sessionStorage from current page
+            try:
+                session_storage = driver.execute_script("""
+                    let items = {};
+                    try {
+                        for (let i = 0; i < sessionStorage.length; i++) {
+                            let key = sessionStorage.key(i);
+                            items[key] = sessionStorage.getItem(key);
+                        }
+                    } catch(e) {}
+                    return items;
+                """)
+                logger.info(f"✓ Retrieved {len(session_storage)} sessionStorage items")
+            except Exception as e:
+                logger.warning(f"Failed to get sessionStorage: {e}")
+                session_storage = {}
+
+            # Group cookies by domain for analysis
+            cookie_domains = {}
+            for cookie in all_cookies:
+                domain = cookie.get('domain', 'unknown')
+                if domain not in cookie_domains:
+                    cookie_domains[domain] = 0
+                cookie_domains[domain] += 1
+
+            logger.info(f"Cookie distribution across domains:")
+            for domain, count in sorted(cookie_domains.items()):
+                logger.info(f"  {domain}: {count} cookies")
+
+            # Check for critical Auth0 cookies
+            auth0_cookies = [c for c in all_cookies if 'auth0' in c.get('name', '').lower()]
+            if auth0_cookies:
+                logger.info(f"✓ Found {len(auth0_cookies)} Auth0 cookies")
+                for cookie in auth0_cookies:
+                    logger.info(f"  - {cookie.get('name')} on {cookie.get('domain')}")
+            else:
+                logger.warning("⚠️ No Auth0 cookies found - authentication may fail!")
+
+            # Create state object
             state = {
                 'saved_at': datetime.now().isoformat(),
                 'user_agent': user_agent,
-                'domains': {},
+                'current_url': current_url,
+                'cookies': all_cookies,
+                'localStorage': local_storage,
+                'sessionStorage': session_storage,
+                'cookie_count': len(all_cookies),
+                'localStorage_count': len(local_storage),
+                'sessionStorage_count': len(session_storage),
             }
-
-            total_cookies = 0
-            total_local_storage = 0
-            total_session_storage = 0
-
-            # Capture state from each domain
-            for domain_url in domains:
-                logger.info(f"[SESSION] Capturing: {domain_url}")
-
-                try:
-                    # Navigate to domain
-                    driver.get(domain_url)
-                    import time
-                    time.sleep(1)
-
-                    # Get domain key
-                    parsed = urlparse(domain_url)
-                    domain_key = parsed.netloc
-
-                    # Capture cookies
-                    cookies = driver.get_cookies()
-                    total_cookies += len(cookies)
-
-                    # Capture localStorage
-                    local_storage = driver.execute_script("""
-                        let items = {};
-                        try {
-                            for (let i = 0; i < localStorage.length; i++) {
-                                let key = localStorage.key(i);
-                                items[key] = localStorage.getItem(key);
-                            }
-                        } catch(e) {}
-                        return items;
-                    """)
-                    total_local_storage += len(local_storage)
-
-                    # Capture sessionStorage
-                    session_storage = driver.execute_script("""
-                        let items = {};
-                        try {
-                            for (let i = 0; i < sessionStorage.length; i++) {
-                                let key = sessionStorage.key(i);
-                                items[key] = sessionStorage.getItem(key);
-                            }
-                        } catch(e) {}
-                        return items;
-                    """)
-                    total_session_storage += len(session_storage)
-
-                    # Store domain state
-                    state['domains'][domain_key] = {
-                        'url': domain_url,
-                        'actual_url': driver.current_url,
-                        'cookies': cookies,
-                        'localStorage': local_storage,
-                        'sessionStorage': session_storage,
-                        'counts': {
-                            'cookies': len(cookies),
-                            'localStorage': len(local_storage),
-                            'sessionStorage': len(session_storage),
-                        }
-                    }
-
-                    logger.info(f"[SESSION]   ✓ {domain_key}: "
-                               f"{len(cookies)} cookies, "
-                               f"{len(local_storage)} localStorage, "
-                               f"{len(session_storage)} sessionStorage")
-
-                except Exception as e:
-                    logger.warning(f"[SESSION]   ✗ Failed to capture {domain_url}: {e}")
-                    state['domains'][domain_key] = {'error': str(e)}
 
             # Save state to file
             with open(self.state_file, 'w') as f:
                 json.dump(state, f, indent=2)
 
             file_size = self.state_file.stat().st_size
-
-            logger.info(f"[SESSION] ✓ Saved complete state: {file_size:,} bytes")
-            logger.info(f"[SESSION]   Total: {total_cookies} cookies, "
-                       f"{total_local_storage} localStorage, "
-                       f"{total_session_storage} sessionStorage")
+            logger.info(f"✓ Saved complete state: {file_size:,} bytes")
+            logger.info(f"  Total: {len(all_cookies)} cookies, {len(local_storage)} localStorage, {len(session_storage)} sessionStorage")
 
             # Save metadata
             self._save_metadata({
                 'saved_at': datetime.now().isoformat(),
                 'user_agent': user_agent,
-                'total_cookies': total_cookies,
-                'total_localStorage': total_local_storage,
-                'total_sessionStorage': total_session_storage,
-                'domains_captured': len(domains),
+                'current_url': current_url,
+                'total_cookies': len(all_cookies),
+                'total_localStorage': len(local_storage),
+                'total_sessionStorage': len(session_storage),
             })
 
             return True
 
         except Exception as e:
-            logger.error(f"[SESSION] Error saving complete state: {e}")
+            logger.error(f"Error saving complete state: {e}")
             import traceback
-            logger.error(f"[SESSION] Traceback:\n{traceback.format_exc()}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
             return False
 
     def load_complete_state(
@@ -178,7 +176,10 @@ class EnhancedSessionManager:
         verify_user_agent: bool = True
     ) -> bool:
         """
-        Load complete browser state including cookies and storage.
+        Load complete browser state using Chrome DevTools Protocol.
+
+        Uses CDP to set ALL cookies at once, BEFORE any navigation.
+        This ensures cookies are present when the page loads.
 
         Args:
             driver: Selenium WebDriver instance
@@ -188,11 +189,11 @@ class EnhancedSessionManager:
             True if loaded successfully, False otherwise
         """
         try:
-            logger.info(f"[SESSION] === LOADING COMPLETE BROWSER STATE ===")
+            logger.info("=== LOADING COMPLETE BROWSER STATE (CDP) ===")
 
             # Check if state file exists
             if not self.state_file.exists():
-                logger.info(f"[SESSION] No saved state found")
+                logger.info("No saved state found")
                 return False
 
             # Load state
@@ -200,100 +201,104 @@ class EnhancedSessionManager:
                 state = json.load(f)
 
             saved_at = state.get('saved_at')
+            saved_url = state.get('current_url')
             saved_ua = state.get('user_agent')
 
-            logger.info(f"[SESSION] State saved at: {saved_at}")
+            logger.info(f"State saved at: {saved_at}")
+            logger.info(f"Saved URL: {saved_url}")
 
             # Verify user agent if requested
             if verify_user_agent and saved_ua:
                 current_ua = driver.execute_script("return navigator.userAgent;")
                 if current_ua != saved_ua:
-                    logger.warning(f"[SESSION] ⚠️ User-Agent mismatch!")
-                    logger.warning(f"[SESSION]   Saved: {saved_ua[:80]}...")
-                    logger.warning(f"[SESSION]   Current: {current_ua[:80]}...")
-                    logger.warning(f"[SESSION]   This may cause authentication to fail!")
+                    logger.warning("⚠️ User-Agent mismatch!")
+                    logger.warning(f"  Saved: {saved_ua[:80]}...")
+                    logger.warning(f"  Current: {current_ua[:80]}...")
+                    logger.warning("  This may cause authentication to fail!")
 
-            domains_data = state.get('domains', {})
-            logger.info(f"[SESSION] Restoring state for {len(domains_data)} domains")
+            cookies = state.get('cookies', [])
+            local_storage = state.get('localStorage', {})
+            session_storage = state.get('sessionStorage', {})
 
-            total_restored_cookies = 0
-            total_restored_local = 0
-            total_restored_session = 0
+            logger.info(f"Restoring: {len(cookies)} cookies, {len(local_storage)} localStorage, {len(session_storage)} sessionStorage")
 
-            # Restore state for each domain
-            for domain_key, domain_data in domains_data.items():
-                if 'error' in domain_data:
-                    logger.warning(f"[SESSION] Skipping {domain_key}: {domain_data['error']}")
-                    continue
+            # CRITICAL: Set ALL cookies via CDP BEFORE navigating
+            # This ensures cookies are present when we load the page
+            logger.info("Setting cookies via CDP...")
+            restored_cookies = 0
+            failed_cookies = 0
 
-                domain_url = domain_data.get('url')
-                logger.info(f"[SESSION] Restoring: {domain_key}")
-
+            for cookie in cookies:
                 try:
-                    # Navigate to domain
-                    driver.get(domain_url)
-                    import time
-                    time.sleep(1)
+                    # CDP requires specific cookie format
+                    cdp_cookie = {
+                        'name': cookie.get('name'),
+                        'value': cookie.get('value'),
+                        'domain': cookie.get('domain'),
+                        'path': cookie.get('path', '/'),
+                        'secure': cookie.get('secure', False),
+                        'httpOnly': cookie.get('httpOnly', False),
+                    }
 
-                    # Restore cookies
-                    cookies = domain_data.get('cookies', [])
-                    for cookie in cookies:
-                        try:
-                            # Clean cookie
-                            cookie_copy = cookie.copy()
-                            cookie_copy.pop('sameSite', None)
-                            cookie_copy.pop('expiry', None)
+                    # Add expiry if present
+                    if 'expiry' in cookie or 'expires' in cookie:
+                        cdp_cookie['expires'] = cookie.get('expiry', cookie.get('expires'))
 
-                            driver.add_cookie(cookie_copy)
-                            total_restored_cookies += 1
-                        except Exception as e:
-                            logger.debug(f"[SESSION] Skipped cookie {cookie.get('name')}: {e}")
+                    # Add sameSite if present
+                    if 'sameSite' in cookie:
+                        cdp_cookie['sameSite'] = cookie.get('sameSite')
 
-                    # Restore localStorage
-                    local_storage = domain_data.get('localStorage', {})
-                    if local_storage:
-                        for key, value in local_storage.items():
-                            try:
-                                driver.execute_script(
-                                    f"localStorage.setItem(arguments[0], arguments[1]);",
-                                    key, value
-                                )
-                                total_restored_local += 1
-                            except Exception as e:
-                                logger.debug(f"[SESSION] Failed to restore localStorage[{key}]: {e}")
-
-                    # Restore sessionStorage
-                    session_storage = domain_data.get('sessionStorage', {})
-                    if session_storage:
-                        for key, value in session_storage.items():
-                            try:
-                                driver.execute_script(
-                                    f"sessionStorage.setItem(arguments[0], arguments[1]);",
-                                    key, value
-                                )
-                                total_restored_session += 1
-                            except Exception as e:
-                                logger.debug(f"[SESSION] Failed to restore sessionStorage[{key}]: {e}")
-
-                    logger.info(f"[SESSION]   ✓ {domain_key}: "
-                               f"{len(cookies)} cookies, "
-                               f"{len(local_storage)} localStorage, "
-                               f"{len(session_storage)} sessionStorage")
+                    # Set cookie via CDP
+                    driver.execute_cdp_cmd('Network.setCookie', cdp_cookie)
+                    restored_cookies += 1
 
                 except Exception as e:
-                    logger.warning(f"[SESSION]   ✗ Failed to restore {domain_key}: {e}")
+                    failed_cookies += 1
+                    logger.debug(f"Failed to set cookie {cookie.get('name')}: {e}")
 
-            logger.info(f"[SESSION] ✓ Restored complete state:")
-            logger.info(f"[SESSION]   {total_restored_cookies} cookies")
-            logger.info(f"[SESSION]   {total_restored_local} localStorage items")
-            logger.info(f"[SESSION]   {total_restored_session} sessionStorage items")
+            logger.info(f"✓ Set {restored_cookies} cookies via CDP ({failed_cookies} failed)")
 
-            return total_restored_cookies > 0
+            # Now navigate to the saved URL
+            # Cookies are already present, so authentication should work
+            logger.info(f"Navigating to saved URL: {saved_url}")
+            driver.get(saved_url)
+
+            import time
+            time.sleep(2)  # Give page time to load
+
+            # Restore localStorage
+            if local_storage:
+                logger.info(f"Restoring {len(local_storage)} localStorage items...")
+                for key, value in local_storage.items():
+                    try:
+                        driver.execute_script(
+                            "localStorage.setItem(arguments[0], arguments[1]);",
+                            key, value
+                        )
+                    except Exception as e:
+                        logger.debug(f"Failed to restore localStorage[{key}]: {e}")
+
+            # Restore sessionStorage
+            if session_storage:
+                logger.info(f"Restoring {len(session_storage)} sessionStorage items...")
+                for key, value in session_storage.items():
+                    try:
+                        driver.execute_script(
+                            "sessionStorage.setItem(arguments[0], arguments[1]);",
+                            key, value
+                        )
+                    except Exception as e:
+                        logger.debug(f"Failed to restore sessionStorage[{key}]: {e}")
+
+            logger.info("✓ Complete state restored successfully")
+            logger.info(f"Current URL: {driver.current_url}")
+
+            return restored_cookies > 0
 
         except Exception as e:
-            logger.error(f"[SESSION] Error loading complete state: {e}")
+            logger.error(f"Error loading complete state: {e}")
             import traceback
-            logger.error(f"[SESSION] Traceback:\n{traceback.format_exc()}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
             return False
 
     def _save_metadata(self, metadata: Dict) -> None:
@@ -302,7 +307,7 @@ class EnhancedSessionManager:
             with open(self.metadata_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
         except Exception as e:
-            logger.warning(f"[SESSION] Failed to save metadata: {e}")
+            logger.warning(f"Failed to save metadata: {e}")
 
     def get_metadata(self) -> Optional[Dict]:
         """Get session metadata."""
@@ -313,7 +318,7 @@ class EnhancedSessionManager:
             with open(self.metadata_file, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            logger.warning(f"[SESSION] Failed to read metadata: {e}")
+            logger.warning(f"Failed to read metadata: {e}")
             return None
 
     def is_session_valid(self, max_age_hours: int = 720) -> bool:
@@ -329,12 +334,10 @@ class EnhancedSessionManager:
         try:
             metadata = self.get_metadata()
             if not metadata:
-                logger.info(f"[SESSION] No metadata found")
                 return False
 
             saved_at_str = metadata.get('saved_at')
             if not saved_at_str:
-                logger.warning(f"[SESSION] Metadata missing 'saved_at'")
                 return False
 
             saved_at = datetime.fromisoformat(saved_at_str)
@@ -344,15 +347,15 @@ class EnhancedSessionManager:
 
             if is_valid:
                 remaining = max_age_hours - age_hours
-                logger.info(f"[SESSION] ✓ Session valid (expires in {remaining:.1f} hours)")
+                logger.info(f"✓ Session valid (expires in {remaining:.1f} hours)")
             else:
                 expired_by = age_hours - max_age_hours
-                logger.info(f"[SESSION] ✗ Session expired ({expired_by:.1f} hours ago)")
+                logger.info(f"✗ Session expired ({expired_by:.1f} hours ago)")
 
             return is_valid
 
         except Exception as e:
-            logger.error(f"[SESSION] Error checking session validity: {e}")
+            logger.error(f"Error checking session validity: {e}")
             return False
 
     def clear_session(self) -> bool:
@@ -369,14 +372,14 @@ class EnhancedSessionManager:
                 deleted.append(self.metadata_file.name)
 
             if deleted:
-                logger.info(f"[SESSION] Deleted: {', '.join(deleted)}")
+                logger.info(f"Deleted: {', '.join(deleted)}")
                 return True
             else:
-                logger.info(f"[SESSION] No session files to delete")
+                logger.info("No session files to delete")
                 return False
 
         except Exception as e:
-            logger.error(f"[SESSION] Error deleting session: {e}")
+            logger.error(f"Error deleting session: {e}")
             return False
 
 

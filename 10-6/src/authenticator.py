@@ -628,65 +628,33 @@ class FMLSAuthenticator:
             logger.debug(f"Password Secret: {self.password_secret_name}")
             logger.debug("=== [END DEBUG] ===\n")
 
-            # Step 1: Try to load saved session using Enhanced Session Manager
-            logger.info("=" * 80)
-            logger.info("[DEBUG SESSION] STEP 1: CHECKING FOR SAVED SESSION")
-            logger.info("=" * 80)
-
+            # Step 1: Try to load saved session
             logger.info("Step 1: Checking for saved session...")
 
-            # Check session validity
-            session_is_valid = self.session_manager.is_session_valid()
-            logger.info(f"[DEBUG SESSION] Session validity result: {session_is_valid}")
+            if self.session_manager.is_session_valid():
+                logger.info("Found valid saved session - attempting to restore...")
 
-            if session_is_valid:
-                logger.info("Found valid saved session - attempting to load complete state...")
-
-                # Load complete state (cookies + localStorage + sessionStorage)
-                logger.info(f"[DEBUG SESSION] === LOADING COMPLETE BROWSER STATE ===")
-
-                cookie_load_result = self.session_manager.load_complete_state(
-                    driver=self.driver,
-                    verify_user_agent=True
-                )
-
-                logger.info(f"[DEBUG SESSION] Complete state load result: {cookie_load_result}")
-
-                if cookie_load_result:
-                    logger.info("Complete state loaded - verifying authentication status...")
-
-                    # Navigate to dashboard to check authentication
-                    logger.info(f"[DEBUG SESSION] Navigating to dashboard to verify authentication...")
-                    dashboard_url = self.config['dashboard_url']
-                    logger.info(f"[DEBUG SESSION] Dashboard URL: {dashboard_url}")
-                    self.driver.get(dashboard_url)
-                    time.sleep(3)
-                    logger.info(f"[DEBUG SESSION] Current URL after navigation: {self.driver.current_url}")
+                # Load complete state via CDP (fast, reliable)
+                if self.session_manager.load_complete_state(driver=self.driver, verify_user_agent=True):
+                    logger.info("Complete state restored - verifying authentication...")
 
                     # Check if session is still valid
-                    logger.info(f"[DEBUG SESSION] Checking if loaded state provides valid authentication...")
-                    auth_check_result = self.is_authenticated()
-                    logger.info(f"[DEBUG SESSION] Authentication check result: {auth_check_result}")
-
-                    if auth_check_result:
+                    if self.is_authenticated():
                         logger.info("✓ Successfully authenticated using saved session")
+                        logger.info("✓✓✓ SESSION PERSISTENCE SUCCESSFUL - No 2FA needed! ✓✓✓")
 
                         # Navigate to Remine
                         if self.navigate_to_remine():
-                            logger.info("✓ Successfully navigated to Remine dashboard")
-                            logger.info(f"[DEBUG SESSION] ✓✓✓ SESSION PERSISTENCE SUCCESSFUL - No 2FA needed! ✓✓✓")
+                            logger.info("✓ Ready to begin scraping operations")
                             return True
                         else:
-                            logger.warning("Failed to navigate to Remine with saved session - will try fresh login")
+                            logger.warning("Failed to navigate to Remine - will try fresh login")
                     else:
-                        logger.warning(f"[DEBUG SESSION] Loaded state did not provide valid authentication")
-                        logger.warning(f"[DEBUG SESSION] Will proceed with fresh login and 2FA")
+                        logger.info("Saved session no longer valid - will perform fresh login")
                 else:
-                    logger.info("Failed to load complete state - will perform fresh login")
-                    logger.info(f"[DEBUG SESSION] State loading failed - session may be corrupted or incompatible")
+                    logger.info("Failed to restore session - will perform fresh login")
             else:
                 logger.info("No valid saved session found - will perform fresh login")
-                logger.info(f"[DEBUG SESSION] Reason: Session file doesn't exist, expired, or invalid")
 
             # Step 2: Check if already authenticated (without cookies)
             logger.info("\nStep 2: Checking if already authenticated...")
@@ -766,40 +734,23 @@ class FMLSAuthenticator:
 
             logger.info("✓ Successfully navigated to Remine")
 
-            # CRITICAL: Save complete browser state from ALL domains
-            logger.info("\nStep 3.7: Saving complete browser state (all domains)...")
-            logger.info("[DEBUG SESSION] === SAVING COMPLETE STATE WITH ENHANCED SESSION MANAGER ===")
-
-            # Define all critical domains to capture
-            critical_domains = [
-                'https://firstmls.com',
-                'https://firstmls-login.sso.remine.com',  # CRITICAL: Auth0 cookies are here
-                'https://firstmls.sso.remine.com',
-                'https://firstmls.sso.remine.com/dashboard-v2',
-                'https://fmls.remine.com',
-                'https://fmls.remine.com/daily',
-                'https://remine.com',
-            ]
-
-            logger.info(f"[DEBUG SESSION] Capturing state from {len(critical_domains)} critical domains")
+            # Save complete browser state via CDP
+            logger.info("\nStep 3.7: Saving complete browser state...")
 
             # Get user agent for consistency
             from config import Settings
             user_agent = Settings.USER_AGENT
 
-            # Save complete state using enhanced session manager
+            # Save complete state using CDP (fast, captures ALL cookies from ALL domains)
             save_result = self.session_manager.save_complete_state(
                 driver=self.driver,
-                domains=critical_domains,
                 user_agent=user_agent
             )
 
             if save_result:
                 logger.info("✓ Complete browser state saved successfully")
-                logger.info("[DEBUG SESSION] ✓ All cookies, localStorage, and sessionStorage captured")
             else:
                 logger.warning("⚠️ Failed to save complete state - session persistence may not work")
-                logger.warning("[DEBUG SESSION] Check logs above for specific errors")
 
             logger.info("=" * 80)
             logger.info("✓ AUTHENTICATION SUCCESSFUL")

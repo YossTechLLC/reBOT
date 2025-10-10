@@ -4,7 +4,11 @@
       "Bash(tree:*)",
       "Bash(chmod:*)",
       "Bash(python:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(if [ -f \"10-6/data/cookies/fmls_session_state.json\" ])",
+      "Bash(then cat 10-6/data/cookies/fmls_session_state.json)",
+      "Bash(else echo \"Session state file not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

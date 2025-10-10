@@ -1,0 +1,365 @@
+{
+  "captured_at": "2025-10-10T01:47:02.634190",
+  "fingerprint": {
+    "colorDepth": 24,
+    "cookieEnabled": true,
+    "deviceMemory": null,
+    "doNotTrack": null,
+    "hardwareConcurrency": 2,
+    "language": "en-US",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "mimeTypes": [
+      "application/pdf",
+      "text/pdf"
+    ],
+    "pixelRatio": 1,
+    "platform": "Linux x86_64",
+    "plugins": [
+      "PDF Viewer",
+      "Chrome PDF Viewer",
+      "Chromium PDF Viewer",
+      "Microsoft Edge PDF Viewer",
+      "WebKit built-in PDF"
+    ],
+    "screenResolution": "800x600",
+    "timezone": "UTC",
+    "timezoneOffset": 0,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "webdriver": false
+  },
+  "cookies": {
+    "firstmls.com": {
+      "url": "https://firstmls.com",
+      "actual_url": "https://firstmls.com/",
+      "cookie_count": 8,
+      "cookies": [
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1791596829,
+          "httpOnly": false,
+          "name": "zabHMBucket",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "HLUjwEo"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1760072399,
+          "httpOnly": false,
+          "name": "zft-sdc",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "isef%3Dtrue-isfr%3Dtrue-source%3Ddirect"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1760062626,
+          "httpOnly": false,
+          "name": "zscc6c60c4b30be4630b3fa7e3d5faf740e",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "1760060826818zsc0.34927094358529687"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1791596823,
+          "httpOnly": false,
+          "name": "zps-tgr-dts",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "sc%3D1-expAppOnNewSession%3D%5B%5D-pc%3D1-sesst%3D1760060826864"
+        },
+        {
+          "domain": "firstmls.com",
+          "expiry": 1791596823,
+          "httpOnly": false,
+          "name": "zabUserId",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "1760060823533zabu0.10455719060423452"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1794620825,
+          "httpOnly": false,
+          "name": "_ga",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GA1.1.1597767994.1760060825"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1794620825,
+          "httpOnly": false,
+          "name": "_ga_K8E74FCC22",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GS2.1.s1760060825$o1$g0$t1760060825$j60$l0$h0"
+        },
+        {
+          "domain": ".firstmls.com",
+          "expiry": 1760062622,
+          "httpOnly": true,
+          "name": "__cf_bm",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "xEKi8MflpRVONFo2A9o9VOe53HyBcWE0j3Rfrqnj6qA-1760060822-1.0.1.1-iKrt3m0T.IZer29REvr.LIx3f8KbIx38adUvpr0DxyeFFb_MjHzywpyt87_9ZnSMQm0DvJfv5CorqE9IVci3MtjVnRJpTQS8FuTYF6DO5sc"
+        }
+      ]
+    },
+    "firstmls.sso.remine.com": {
+      "error": "HTTPConnectionPool(host='localhost', port=48209): Read timed out. (read timeout=120)"
+    },
+    "fmls.remine.com": {
+      "url": "https://fmls.remine.com/daily",
+      "actual_url": "https://firstmls-login.sso.remine.com/login?state=hKFo2SBHLXYzR000cmJCZThGdUx3aXROTnE1Z0hNRkNIRXFXcaFupWxvZ2luo3RpZNkgbWVpcl8wY2o2alBpdm52dWlRTFA3YTZiSWJocHVDNEejY2lk2SAzNkFXNHZoZGp5bFRNM1U2bkVWSk1RNVVaUk9TenhlcA&client=36AW4vhdjylTM3U6nEVJMQ5UZROSzxep&protocol=oauth2&scope=openid%20profile%20email&redirect_uri=https%3A%2F%2Ffmls.remine.com%2Fauth%2Fsso&response_type=code#signin",
+      "cookie_count": 10,
+      "cookies": [
+        {
+          "domain": ".remine.com",
+          "expiry": 1794621050,
+          "httpOnly": false,
+          "name": "_ga_9R5REZNMRH",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GS2.2.s1760060840$o1$g1$t1760061047$j60$l0$h0"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760061101,
+          "httpOnly": false,
+          "name": "_gat",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "1"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760147441,
+          "httpOnly": false,
+          "name": "_gid",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GA1.2.1657224650.1760060840"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1791596856,
+          "httpOnly": false,
+          "name": "__zlcmid",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "1U3nygWH6nXRJig"
+        },
+        {
+          "domain": "firstmls-login.sso.remine.com",
+          "expiry": 1760320256,
+          "httpOnly": true,
+          "name": "auth0",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "s%3Av1.gadzZXNzaW9ug6ZoYW5kbGXEQHHYPiUDQhMbJdW_XlPxjGHz-Wp8DYi6hQEPZ4uOgcs9cxSw48tusSsGONcSR55cO-wX0C7iamobMT4LL3RT_AemY29va2llg6dleHBpcmVz1_-HLu8AaOxbAK5vcmlnaW5hbE1heEFnZc4PcxQAqHNhbWVTaXRlpG5vbmWkc2JpZJPZIGoyaC1MQUdpVHZ5OF8yeTZYakpVS1FxSWpFaEgzSjVs2SBqZ0JxNDlVaU4xTHVnazNyX2ptRHYySmhwRjNaNnNOWdkgc2lsUkdCSzdoUDY5dFlHcC0zLURsWF9uNE8xenJ5NGI.JoTWqVC6D0zmtW4bB0Ghv506GzPeKqDMenK9PRY6y10"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1794621041,
+          "httpOnly": false,
+          "name": "_ga",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GA1.2.467858473.1760060840"
+        },
+        {
+          "domain": "firstmls-login.sso.remine.com",
+          "expiry": 1760320256,
+          "httpOnly": true,
+          "name": "auth0_compat",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": true,
+          "value": "s%3Av1.gadzZXNzaW9ug6ZoYW5kbGXEQHHYPiUDQhMbJdW_XlPxjGHz-Wp8DYi6hQEPZ4uOgcs9cxSw48tusSsGONcSR55cO-wX0C7iamobMT4LL3RT_AemY29va2llg6dleHBpcmVz1_-HLu8AaOxbAK5vcmlnaW5hbE1heEFnZc4PcxQAqHNhbWVTaXRlpG5vbmWkc2JpZJPZIGoyaC1MQUdpVHZ5OF8yeTZYakpVS1FxSWpFaEgzSjVs2SBqZ0JxNDlVaU4xTHVnazNyX2ptRHYySmhwRjNaNnNOWdkgc2lsUkdCSzdoUDY5dFlHcC0zLURsWF9uNE8xenJ5NGI.JoTWqVC6D0zmtW4bB0Ghv506GzPeKqDMenK9PRY6y10"
+        },
+        {
+          "domain": "firstmls-login.sso.remine.com",
+          "expiry": 1791618434,
+          "httpOnly": true,
+          "name": "did_compat",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": true,
+          "value": "s%3Av0%3A4e85bfe4-a6a6-4d93-b992-98ab43b1f061.j502v1VcSq0HEzN1IkQu24RtLbCG1oWoAAlS0ydQQX8"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760406655,
+          "httpOnly": false,
+          "name": "aws-waf-token",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": true,
+          "value": "76a4a488-3802-4c92-9da1-6aad3d9463ca:EQoAolgLqdicAAAA:3nLJhI9kYqkvJna8KyjmWq5ssQg5JVFuriXQ3YgBOcGFC8mH1HZErB1kva/Xe+vSRC9TAGM1dEJ3FogRT3DQm6v+0qxdxlLekxV9rfy24ewy8LbXWzGVpeCy7+C6Y4VP0sNs1DoJmBfK6e1KVwkOjLTMlsg3Hb165N4BSV9+0U7V9fEbJ4PMQCJNpMyWJzOSdjS8gav5uKhDyLQskDL/O8QVTR0BiOiV3RDP4lBBRKKXFn8="
+        },
+        {
+          "domain": "firstmls-login.sso.remine.com",
+          "expiry": 1791618434,
+          "httpOnly": true,
+          "name": "did",
+          "path": "/",
+          "sameSite": "None",
+          "secure": true,
+          "value": "s%3Av0%3A4e85bfe4-a6a6-4d93-b992-98ab43b1f061.j502v1VcSq0HEzN1IkQu24RtLbCG1oWoAAlS0ydQQX8"
+        }
+      ]
+    },
+    "remine.com": {
+      "url": "https://remine.com",
+      "actual_url": "https://remine.com/",
+      "cookie_count": 7,
+      "cookies": [
+        {
+          "domain": ".remine.com",
+          "expiry": 1794621064,
+          "httpOnly": false,
+          "name": "_ga",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GA1.1.467858473.1760060840"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760406655,
+          "httpOnly": false,
+          "name": "aws-waf-token",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": true,
+          "value": "76a4a488-3802-4c92-9da1-6aad3d9463ca:EQoAolgLqdicAAAA:3nLJhI9kYqkvJna8KyjmWq5ssQg5JVFuriXQ3YgBOcGFC8mH1HZErB1kva/Xe+vSRC9TAGM1dEJ3FogRT3DQm6v+0qxdxlLekxV9rfy24ewy8LbXWzGVpeCy7+C6Y4VP0sNs1DoJmBfK6e1KVwkOjLTMlsg3Hb165N4BSV9+0U7V9fEbJ4PMQCJNpMyWJzOSdjS8gav5uKhDyLQskDL/O8QVTR0BiOiV3RDP4lBBRKKXFn8="
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1794621064,
+          "httpOnly": false,
+          "name": "_ga_82H0X8DXYL",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GS2.1.s1760061064$o1$g0$t1760061064$j60$l0$h0"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1794621050,
+          "httpOnly": false,
+          "name": "_ga_9R5REZNMRH",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GS2.2.s1760060840$o1$g1$t1760061047$j60$l0$h0"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760061101,
+          "httpOnly": false,
+          "name": "_gat",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "1"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1791596856,
+          "httpOnly": false,
+          "name": "__zlcmid",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "1U3nygWH6nXRJig"
+        },
+        {
+          "domain": ".remine.com",
+          "expiry": 1760147441,
+          "httpOnly": false,
+          "name": "_gid",
+          "path": "/",
+          "sameSite": "Lax",
+          "secure": false,
+          "value": "GA1.2.1657224650.1760060840"
+        }
+      ]
+    }
+  },
+  "storage": {
+    "firstmls.com": {
+      "url": "https://firstmls.com",
+      "current_url": "https://firstmls.com/",
+      "localStorage": {
+        "zps-ft-details": "{\"c6c60c4b30be4630b3fa7e3d5faf740e\":{\"fsrc\":\"direct\",\"fmdm\":\"(none)\",\"fchn\":\"direct\",\"n\":true,\"lp\":\"https://firstmls.com\",\"lpr\":\"\",\"liht\":true,\"ltv\":\"DIRECT\",\"lfrv\":\"\",\"lfcv\":\"https://firstmls.com/\",\"lcv\":\"https://firstmls.com\",\"lrv\":\"\",\"lup\":[],\"ld\":\"1760061088452zabv0.2344139359151668\",\"lht\":\"pageview\",\"lisef\":false,\"lsrc\":\"direct\",\"lmdm\":\"(none)\",\"lchn\":\"direct\",\"ldtte\":\"Georgia Real Estate Starts Here - FMLS\",\"lifr\":false,\"rst\":1760061088748}}",
+        "zps-ft-pghitType-details": "{\"c6c60c4b30be4630b3fa7e3d5faf740e\":{\"liht\":true,\"lifr\":false,\"lisef\":false,\"ltv\":\"DIRECT\",\"lfrv\":\"\",\"lfcv\":\"https://firstmls.com/\",\"lcv\":\"https://firstmls.com\",\"lrv\":\"\",\"lup\":[],\"ld\":\"1760061088452zabv0.2344139359151668\",\"lsrc\":\"direct\",\"lmdm\":\"(none)\",\"lchn\":\"direct\",\"ldtte\":\"Georgia Real Estate Starts Here - FMLS\",\"rst\":1760061088748}}"
+      },
+      "sessionStorage": {
+        "wpEmojiSettingsSupports": "{\"supportTests\":{\"flag\":false,\"emoji\":false},\"timestamp\":1760060823452}"
+      },
+      "item_count": {
+        "localStorage": 2,
+        "sessionStorage": 1
+      }
+    },
+    "firstmls.sso.remine.com": {
+      "url": "https://firstmls.sso.remine.com/dashboard-v2",
+      "current_url": "https://firstmls.sso.remine.com/page-not-found",
+      "localStorage": {},
+      "sessionStorage": {
+        "a0.spajs.txs.MlYefPoR5ztZdoyauZRB54OdKzMIDVKJ": "{\"nonce\":\"aC1Na0t0Zm45bURrOWVtTFpaa2RlbG82bllJaHhETnhGMms1ZkZsU3loUg==\",\"code_verifier\":\"3FJxr6Osdijgp5PZGDh0bVilHl3kU-MdiMPO76df_Du\",\"scope\":\"openid profile email\",\"audience\":\"https://sso-dashboard-api/\",\"redirect_uri\":\"https://firstmls.sso.remine.com/callback\",\"state\":\"em1Pak9udGkwZUZWVU5rWVF6SmY4RmowSk9RR0RsV3Y5cXExOTFEM0ZzSw==\",\"appState\":{\"returnTo\":\"/dashboard\"}}"
+      },
+      "item_count": {
+        "localStorage": 0,
+        "sessionStorage": 1
+      }
+    },
+    "sso.remine.com": {
+      "url": "https://sso.remine.com",
+      "error": "Message: unknown error: net::ERR_NAME_NOT_RESOLVED\n  (Session info: chrome=141.0.7390.54)\nStacktrace:\n#0 0x56539db574ca <unknown>\n#1 0x56539d5d6566 <unknown>\n#2 0x56539d5cd470 <unknown>\n#3 0x56539d5be926 <unknown>\n#4 0x56539d5c072b <unknown>\n#5 0x56539d5beeb1 <unknown>\n#6 0x56539d5be650 <unknown>\n#7 0x56539d5be302 <unknown>\n#8 0x56539d5bc142 <unknown>\n#9 0x56539d5bc92a <unknown>\n#10 0x56539d5d9a99 <unknown>\n#11 0x56539d674ee5 <unknown>\n#12 0x56539d64e632 <unknown>\n#13 0x56539d674328 <unknown>\n#14 0x56539d64e403 <unknown>\n#15 0x56539d61ab02 <unknown>\n#16 0x56539d61b7c1 <unknown>\n#17 0x56539db1b298 <unknown>\n#18 0x56539db1f0ff <unknown>\n#19 0x56539db02729 <unknown>\n#20 0x56539db1fca5 <unknown>\n#21 0x56539dae7f8f <unknown>\n#22 0x56539db44308 <unknown>\n#23 0x56539db444e3 <unknown>\n#24 0x56539db56463 <unknown>\n#25 0x7fbaef5f01f5 <unknown>\n",
+      "localStorage": {},
+      "sessionStorage": {}
+    },
+    "fmls.remine.com": {
+      "url": "https://fmls.remine.com/daily",
+      "error": "Message: tab crashed\n  (Session info: chrome=141.0.7390.54)\n",
+      "localStorage": {},
+      "sessionStorage": {}
+    },
+    "remine.com": {
+      "url": "https://remine.com",
+      "error": "Message: tab crashed\n  (Session info: chrome=141.0.7390.54)\n",
+      "localStorage": {},
+      "sessionStorage": {}
+    }
+  },
+  "domains_checked": [
+    "https://firstmls.com",
+    "https://firstmls.sso.remine.com",
+    "https://firstmls.sso.remine.com/dashboard-v2",
+    "https://sso.remine.com",
+    "https://fmls.remine.com",
+    "https://fmls.remine.com/daily",
+    "https://remine.com"
+  ]
+}
