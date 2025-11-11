@@ -1,0 +1,83 @@
+you are to build the initial scaffolding for a python web-automation and scraping application running on a google cloud virtual machine (bookworm 12). the goal is to process a list of property addresses from an excel file, search each address on a specified website, extract information related to “owner” and “buyer,” and export results back to an excel file while saving raw data to a local database. your output should include clean, well-commented python code and a recommended folder structure suitable for later containerization or cloud run deployment.
+
+objectives
+
+read an excel dataset (input_addresses.xlsx) containing a column “address”.
+
+for each address:
+
+open a search webpage (configurable in code).
+
+enter the address into the site’s search bar.
+
+trigger the search and wait for the page to load.
+
+optionally follow the first search result link if required.
+
+scrape visible text for keywords or patterns containing “owner” and “buyer”.
+
+store for each address:
+
+address searched.
+
+extracted owner name(s) and buyer name(s).
+
+timestamp.
+
+full html snapshot (for re-parsing later).
+
+after all rows are processed:
+
+write a new excel file (output_results.xlsx) mapping address → owner/buyer.
+
+persist data in a simple sqlite database (scrape.db).
+
+
+gcloud run deploy property-scraper \
+  --image=gcr.io/YOUR_PROJECT_ID/property-scraper \
+  --platform=managed \
+  --region=us-central1 \
+  --timeout=3600 \
+  --memory=2Gi \
+  --set-env-vars=TARGET_URL=https://www.zillow.com/
+
+
+gcloud auth configure-docker
+PROJECT_ID=telepay-459221
+REGION=us-central1
+IMAGE=gcr.io/$telepay-459221/property-scraper
+
+docker build -t $IMAGE .
+docker push $IMAGE
+
+gcloud run deploy property-scraper \
+  --image=$IMAGE \
+  --platform=managed \
+  --region=us-central1 \
+  --timeout=3600 \
+  --memory=2Gi \
+  --set-env-vars=TARGET_URL=https://www.zillow.com \
+  --allow-unauthenticated
+
+
+
+export PROJECT_ID=telepay-459221
+export REGION=us-central1
+export IMAGE=gcr.io/$PROJECT_ID/property-scraper
+
+# auth docker to GCR (only for gcr.io)
+gcloud auth configure-docker gcr.io --quiet
+
+docker build -t $IMAGE .
+docker push $IMAGE
+
+gcloud run deploy property-scraper \
+  --image $IMAGE \
+  --region $REGION \
+  --platform managed \
+  --timeout 3600 \
+  --memory 2Gi \
+  --set-env-vars TARGET_URL=https://www.zillow.com \
+  --allow-unauthenticated
+
+
