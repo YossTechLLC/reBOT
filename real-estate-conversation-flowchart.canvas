@@ -1,0 +1,456 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "text",
+      "text": "**START: Opening Call**\n\n\"Hi [Name], this is [Your Name] with [Agency]. I hope I'm catching you at a good time? I noticed you requested information about the property at [Address]. I wanted to personally reach out and make sure you got everything you needed.\"\n\n**Key:** Warm, friendly tone. Not pushy.",
+      "x": -400,
+      "y": -800,
+      "width": 350,
+      "height": 240,
+      "color": "2"
+    },
+    {
+      "id": "response-good-time",
+      "type": "text",
+      "text": "**IF: \"Yes, good time\"**\n\n\"Great! I really appreciate you taking a moment. I saw you were interested in [Property Address] - it's a beautiful property.\"\n\nGo to: Property Inquiry",
+      "x": -600,
+      "y": -450,
+      "width": 300,
+      "height": 200,
+      "color": "3"
+    },
+    {
+      "id": "response-bad-time",
+      "type": "text",
+      "text": "**IF: \"Not a good time\" / Busy**\n\n\"I completely understand! When would be a better time for me to call you back? This will only take about 3-4 minutes.\"\n\n**IF YES:** Schedule callback\n**IF NO:** \"No problem! I'll send you my contact info via text/email. Feel free to reach out when you're ready.\"\n\n→ Go to: Exit with Contact Info",
+      "x": -200,
+      "y": -450,
+      "width": 300,
+      "height": 280,
+      "color": "1"
+    },
+    {
+      "id": "property-inquiry",
+      "type": "text",
+      "text": "**Property Inquiry Confirmation**\n\n\"Did you have a chance to look at the photos and details I sent over about [Property Address]?\"\n\n**Listen actively**",
+      "x": -600,
+      "y": -150,
+      "width": 300,
+      "height": 200,
+      "color": "3"
+    },
+    {
+      "id": "response-yes-saw-photos",
+      "type": "text",
+      "text": "**IF: \"Yes, I saw them\"**\n\n\"Wonderful! What were your initial thoughts?\"\n\n→ Listen for:\n- Interest level\n- Concerns\n- Questions\n\nGo to: Interest Level Branch",
+      "x": -900,
+      "y": 150,
+      "width": 280,
+      "height": 240,
+      "color": "4"
+    },
+    {
+      "id": "response-no-photos",
+      "type": "text",
+      "text": "**IF: \"No, I haven't yet\" / \"Didn't receive them\"**\n\n\"No worries at all! Let me make sure you have the right information. Can you confirm the best email/phone number for you?\"\n\n[Verify contact info]\n\n\"I'll resend those right after our call. In the meantime, let me tell you a bit about what makes this property special...\"\n\nGo to: Quick Property Highlights",
+      "x": -300,
+      "y": 150,
+      "width": 300,
+      "height": 300,
+      "color": "5"
+    },
+    {
+      "id": "interest-level-high",
+      "type": "text",
+      "text": "**HIGH INTEREST**\n\nThey're excited, asking questions, want to see it\n\n\"I love your enthusiasm! This is a popular property. Are you currently working with a real estate agent, or would you like me to help you with this process?\"\n\n→ Branch based on response",
+      "x": -1250,
+      "y": 500,
+      "width": 300,
+      "height": 260,
+      "color": "4"
+    },
+    {
+      "id": "interest-level-medium",
+      "type": "text",
+      "text": "**MEDIUM INTEREST**\n\n\"Interesting\" / \"It's nice\" / Non-committal\n\n\"I understand - finding the right home is a big decision. Can I ask what's most important to you in your search? Location, price range, size, schools?\"\n\n→ Go to: Needs Assessment",
+      "x": -850,
+      "y": 500,
+      "width": 300,
+      "height": 260,
+      "color": "5"
+    },
+    {
+      "id": "interest-level-low",
+      "type": "text",
+      "text": "**LOW INTEREST / Not Right Fit**\n\n\"I can understand - not every property is the right match. Let me ask, what specifically didn't work for you?\"\n\n[Listen: price, location, size, features]\n\n\"That's helpful to know! I work with properties throughout [Area]. Would it be okay if I keep an eye out for something that better fits what you're looking for?\"\n\nGo to: Needs Assessment",
+      "x": -450,
+      "y": 500,
+      "width": 320,
+      "height": 340,
+      "color": "1"
+    },
+    {
+      "id": "has-agent-yes",
+      "type": "text",
+      "text": "**IF: \"Yes, I have an agent\"**\n\n\"That's great! Having representation is so important. If things change or you need anything, I'm always here to help. Can I send you my information just in case?\"\n\n→ Go to: Graceful Exit with Contact",
+      "x": -1600,
+      "y": 850,
+      "width": 300,
+      "height": 240,
+      "color": "1"
+    },
+    {
+      "id": "has-agent-no",
+      "type": "text",
+      "text": "**IF: \"No, I don't have an agent\"**\n\n\"Well, I'd love to help you! I specialize in [Area/Type] and I can make the process smooth and stress-free. Would you be interested in scheduling a time to see this property or maybe a few others that match what you're looking for?\"\n\nGo to: Schedule Showing",
+      "x": -1200,
+      "y": 850,
+      "width": 300,
+      "height": 280,
+      "color": "4"
+    },
+    {
+      "id": "needs-assessment",
+      "type": "text",
+      "text": "**Needs Assessment**\n\nAsk 2-3 key questions:\n\n1. \"What's your timeline for moving?\"\n   - Urgent / 1-3 months / 3-6 months / Just looking\n\n2. \"Are you currently renting or do you own?\"\n   - Understand their situation\n\n3. \"What's bringing you to [Area]?\"\n   - Job, family, lifestyle, investment\n\n**Keep conversational, not interrogative**",
+      "x": -850,
+      "y": 850,
+      "width": 320,
+      "height": 380,
+      "color": "3"
+    },
+    {
+      "id": "timeline-urgent",
+      "type": "text",
+      "text": "**TIMELINE: Urgent (1-3 months)**\n\n\"It sounds like you're ready to make a move soon! That's exciting. The market in Georgia moves quickly right now. Have you been pre-approved for a mortgage yet?\"\n\n**IF YES:** \"Perfect! Let's get you scheduled to see some properties this week.\"\n\n**IF NO:** \"That's the first step I'd recommend. I can connect you with some excellent lenders I trust. Once you're pre-approved, we can start touring homes right away.\"\n\nGo to: Action Steps - Urgent",
+      "x": -1250,
+      "y": 1350,
+      "width": 350,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "timeline-moderate",
+      "type": "text",
+      "text": "**TIMELINE: 3-6 months**\n\n\"That's a great timeline - gives us time to find the perfect fit. Here's what I'd like to do: I'll start sending you properties that match your criteria as they come on the market. No pressure, just keeping you informed.\"\n\n\"In the meantime, would you be interested in a quick 15-minute call next week where I can share some insights about the Georgia market and answer any questions?\"\n\nGo to: Action Steps - Moderate",
+      "x": -800,
+      "y": 1350,
+      "width": 350,
+      "height": 380,
+      "color": "5"
+    },
+    {
+      "id": "timeline-browsing",
+      "type": "text",
+      "text": "**TIMELINE: Just Browsing / Future**\n\n\"I completely understand - there's no rush! Real estate is a big decision and it's smart to take your time. Here's what I can offer:\"\n\n\"1. I'll add you to my VIP list for new listings\n2. Send you monthly market updates for [Area]\n3. Be available anytime you have questions\"\n\n\"Does that sound helpful?\"\n\nGo to: Action Steps - Long Term Nurture",
+      "x": -350,
+      "y": 1350,
+      "width": 350,
+      "height": 380,
+      "color": "6"
+    },
+    {
+      "id": "action-urgent",
+      "type": "text",
+      "text": "**ACTION STEPS - Urgent Timeline**\n\n\"Here's what happens next:\"\n\n**1. Immediate:**\n- \"I'll text you my contact card right now\"\n- \"If not pre-approved: I'll email you lender contacts today\"\n- \"If pre-approved: Let's schedule showings for [specific days]\"\n\n**2. Follow-up:**\n- \"I'll send you a buyer's guide specific to Georgia\"\n- \"I'll compile 3-5 properties similar to the one you inquired about\"\n\n**3. Next Contact:**\n- Schedule specific date/time for next call or showing\n\n\"Sound good?\"",
+      "x": -1250,
+      "y": 1850,
+      "width": 350,
+      "height": 480,
+      "color": "4"
+    },
+    {
+      "id": "action-moderate",
+      "type": "text",
+      "text": "**ACTION STEPS - Moderate Timeline**\n\n\"Here's my commitment to you:\"\n\n**1. This Week:**\n- \"I'll send you my contact info via text\"\n- \"You'll get a welcome email with my calendar link\"\n- \"I'll send Georgia home buying guide (no obligation)\"\n\n**2. Ongoing:**\n- \"Weekly property alerts matching your criteria\"\n- \"Monthly market updates for [Area]\"\n\n**3. Next Contact:**\n- \"Let's schedule a 15-min call for [specific date] to discuss the market\"\n\n\"I'll never be pushy - think of me as your resource. Deal?\"",
+      "x": -800,
+      "y": 1850,
+      "width": 350,
+      "height": 480,
+      "color": "5"
+    },
+    {
+      "id": "action-longterm",
+      "type": "text",
+      "text": "**ACTION STEPS - Long Term Nurture**\n\n\"Here's how I can support you:\"\n\n**1. Right After This Call:**\n- \"I'll text you my contact card\"\n- \"Add you to new listing alerts (you control frequency)\"\n\n**2. Monthly:**\n- \"Market snapshot for [Area]\"\n- \"Featured properties that match your interests\"\n\n**3. Anytime:**\n- \"Questions about neighborhoods, schools, process? Just text or call\"\n- \"Want to pause emails? No problem, just let me know\"\n\n**Next Steps:**\n\"I'll check in with you in [30/60/90 days]. Does that work?\"\n\n\"Remember - zero pressure. I'm here when you're ready.\"",
+      "x": -350,
+      "y": 1850,
+      "width": 350,
+      "height": 540,
+      "color": "6"
+    },
+    {
+      "id": "schedule-showing",
+      "type": "text",
+      "text": "**Schedule Showing**\n\n\"Great! Let me check the property availability. Are you free this week? I have openings on [offer 2-3 specific times].\"\n\n**IF YES:**\n\"Perfect! I'm locking in [Day/Time]. I'll send you a calendar invite and the property address via text right after we hang up.\"\n\n**IF NO:**\n\"No problem! What does your schedule look like? Morning or afternoon better for you?\"\n\n→ Go to: Confirm Next Steps",
+      "x": -1600,
+      "y": 1350,
+      "width": 350,
+      "height": 380,
+      "color": "4"
+    },
+    {
+      "id": "property-highlights",
+      "type": "text",
+      "text": "**Quick Property Highlights**\n\n\"Let me give you the quick highlights on this one:\"\n\n- \"[Key feature 1: e.g., 'Updated kitchen with granite counters']\"\n- \"[Key feature 2: e.g., 'Great school district']\"\n- \"[Key feature 3: e.g., 'Large backyard, perfect for...']\"\n- \"Listed at $[Price] - very competitive for the area\"\n\n\"Based on what you're looking for, does this sound like something worth exploring further?\"\n\nGo to: Interest Level Branch",
+      "x": 100,
+      "y": 500,
+      "width": 320,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "confirm-next-steps",
+      "type": "text",
+      "text": "**Confirm Next Steps**\n\n\"Just to recap:\"\n\n1. \"You'll receive a text from me in the next 5 minutes with:\"\n   - My contact card\n   - [Specific deliverable based on conversation]\n\n2. \"Our next touchpoint is:\"\n   - [Specific date/time/action]\n\n3. \"In the meantime, if you think of any questions, don't hesitate to reach out - text, call, or email, whatever works best for you.\"\n\n→ Go to: Professional Close",
+      "x": -600,
+      "y": 2450,
+      "width": 380,
+      "height": 440,
+      "color": "2"
+    },
+    {
+      "id": "professional-close",
+      "type": "text",
+      "text": "**PROFESSIONAL CLOSE**\n\n\"[Name], I really appreciate you taking the time to chat with me today. Finding the right home is a journey, and I'm excited to help you through it - whether that's now or down the road.\"\n\n\"Before I let you go, is there anything else I can help clarify or any questions you have?\"\n\n[Answer any final questions]\n\n\"Perfect! Talk soon, and remember - I'm just a text away. Have a great rest of your day!\"\n\n**END CALL**\n\n---\n\n**IMMEDIATELY AFTER:**\n- Send text with contact card\n- Send email with promised resources\n- Log call notes in CRM\n- Set follow-up reminder",
+      "x": -600,
+      "y": 3000,
+      "width": 380,
+      "height": 520,
+      "color": "2"
+    },
+    {
+      "id": "graceful-exit",
+      "type": "text",
+      "text": "**Graceful Exit (Has Agent/Not Interested)**\n\n\"I completely understand and respect that. Here's my card anyway - you never know when you might need a second opinion or if your situation changes.\"\n\n\"I really appreciate you taking my call today. If there's ever anything I can do to help, even just answering questions about the Georgia market, please don't hesitate to reach out.\"\n\n\"Have a wonderful day!\"\n\n**Follow-up:**\n- Send contact info via text\n- Add to quarterly newsletter list (low-touch)\n- Note in CRM: \"Has agent\" or \"Not interested - [reason]\"\n\n**END CALL**",
+      "x": -1600,
+      "y": 1200,
+      "width": 350,
+      "height": 460,
+      "color": "1"
+    },
+    {
+      "id": "objection-handling",
+      "type": "text",
+      "text": "**OBJECTION HANDLING GUIDE**\n\n**\"I'm just looking\"**\n→ \"That's the best time to start! No pressure, I'm just here to be a resource.\"\n\n**\"I need to talk to my spouse/partner\"**\n→ \"Absolutely! Would it be helpful if I sent information for you both to review together?\"\n\n**\"I'm working with another agent\"**\n→ \"That's great! I hope they're taking good care of you. Keep my info just in case.\"\n\n**\"What are your fees?\"**\n→ \"Great question! In most cases, the seller pays the commission - it won't cost you anything as a buyer. Let me explain how that works...\"\n\n**\"I'm not ready yet\"**\n→ \"I understand completely. When do you think you might be ready? I'm happy to stay in touch until then.\"",
+      "x": 500,
+      "y": -200,
+      "width": 380,
+      "height": 580,
+      "color": "6"
+    },
+    {
+      "id": "value-statements",
+      "type": "text",
+      "text": "**VALUE STATEMENTS**\n\nUse throughout conversation:\n\n✓ \"I specialize in helping first-time buyers in Georgia navigate the process\"\n\n✓ \"I have access to properties before they hit the major listing sites\"\n\n✓ \"I've been working in [Area] for [X years] and know every neighborhood\"\n\n✓ \"My goal is to make this stress-free for you\"\n\n✓ \"I'm not here to sell you a house - I'm here to help you find the right home\"\n\n✓ \"I work for you, not the seller\"\n\n✓ \"No question is too small - I'm here to educate and guide\"",
+      "x": 500,
+      "y": 500,
+      "width": 380,
+      "height": 480,
+      "color": "6"
+    },
+    {
+      "id": "key-principles",
+      "type": "text",
+      "text": "**KEY PRINCIPLES**\n\n🎯 **Listen more than you talk** (70/30 rule)\n\n🎯 **Build rapport, not pressure**\n- Match their energy level\n- Use their name 2-3 times\n- Find common ground\n\n🎯 **Be consultative, not salesy**\n- Ask questions to understand needs\n- Provide value in every interaction\n- Position as expert advisor\n\n🎯 **Always have clear next steps**\n- Never end with \"I'll call you back\"\n- Always schedule specific follow-up\n- Deliver on every promise made\n\n🎯 **Time management: 5 minutes max**\n- Keep focused on key questions\n- Don't ramble\n- Respect their time",
+      "x": 500,
+      "y": 1100,
+      "width": 380,
+      "height": 580,
+      "color": "2"
+    },
+    {
+      "id": "seller-scenario",
+      "type": "text",
+      "text": "**BONUS: If They Mention SELLING**\n\n\"Oh, are you also looking to sell a property? I'd love to help with that too!\"\n\n**Ask:**\n1. \"What's the address of the property you're considering selling?\"\n2. \"What's driving your decision to sell?\"\n3. \"Have you thought about timing?\"\n\n**Offer:**\n\"I can provide you with a free home valuation and market analysis. Would you be interested in that? I can have it to you in 24 hours.\"\n\n**Next Steps:**\n\"Let's schedule a time for me to come see the property and walk you through current market conditions. Does [Day/Time] work?\"\n\nGo to: Confirm Next Steps",
+      "x": 100,
+      "y": 1050,
+      "width": 350,
+      "height": 480,
+      "color": "4"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge1",
+      "fromNode": "start",
+      "toNode": "response-good-time",
+      "color": "3"
+    },
+    {
+      "id": "edge2",
+      "fromNode": "start",
+      "toNode": "response-bad-time",
+      "color": "1"
+    },
+    {
+      "id": "edge3",
+      "fromNode": "response-good-time",
+      "toNode": "property-inquiry",
+      "color": "3"
+    },
+    {
+      "id": "edge4",
+      "fromNode": "property-inquiry",
+      "toNode": "response-yes-saw-photos",
+      "color": "4"
+    },
+    {
+      "id": "edge5",
+      "fromNode": "property-inquiry",
+      "toNode": "response-no-photos",
+      "color": "5"
+    },
+    {
+      "id": "edge6",
+      "fromNode": "response-yes-saw-photos",
+      "toNode": "interest-level-high",
+      "color": "4"
+    },
+    {
+      "id": "edge7",
+      "fromNode": "response-yes-saw-photos",
+      "toNode": "interest-level-medium",
+      "color": "5"
+    },
+    {
+      "id": "edge8",
+      "fromNode": "response-yes-saw-photos",
+      "toNode": "interest-level-low",
+      "color": "1"
+    },
+    {
+      "id": "edge9",
+      "fromNode": "interest-level-high",
+      "toNode": "has-agent-yes",
+      "color": "1"
+    },
+    {
+      "id": "edge10",
+      "fromNode": "interest-level-high",
+      "toNode": "has-agent-no",
+      "color": "4"
+    },
+    {
+      "id": "edge11",
+      "fromNode": "has-agent-no",
+      "toNode": "schedule-showing",
+      "color": "4"
+    },
+    {
+      "id": "edge12",
+      "fromNode": "interest-level-medium",
+      "toNode": "needs-assessment",
+      "color": "3"
+    },
+    {
+      "id": "edge13",
+      "fromNode": "interest-level-low",
+      "toNode": "needs-assessment",
+      "color": "3"
+    },
+    {
+      "id": "edge14",
+      "fromNode": "needs-assessment",
+      "toNode": "timeline-urgent",
+      "color": "4"
+    },
+    {
+      "id": "edge15",
+      "fromNode": "needs-assessment",
+      "toNode": "timeline-moderate",
+      "color": "5"
+    },
+    {
+      "id": "edge16",
+      "fromNode": "needs-assessment",
+      "toNode": "timeline-browsing",
+      "color": "6"
+    },
+    {
+      "id": "edge17",
+      "fromNode": "timeline-urgent",
+      "toNode": "action-urgent",
+      "color": "4"
+    },
+    {
+      "id": "edge18",
+      "fromNode": "timeline-moderate",
+      "toNode": "action-moderate",
+      "color": "5"
+    },
+    {
+      "id": "edge19",
+      "fromNode": "timeline-browsing",
+      "toNode": "action-longterm",
+      "color": "6"
+    },
+    {
+      "id": "edge20",
+      "fromNode": "action-urgent",
+      "toNode": "confirm-next-steps",
+      "color": "2"
+    },
+    {
+      "id": "edge21",
+      "fromNode": "action-moderate",
+      "toNode": "confirm-next-steps",
+      "color": "2"
+    },
+    {
+      "id": "edge22",
+      "fromNode": "action-longterm",
+      "toNode": "confirm-next-steps",
+      "color": "2"
+    },
+    {
+      "id": "edge23",
+      "fromNode": "schedule-showing",
+      "toNode": "confirm-next-steps",
+      "color": "2"
+    },
+    {
+      "id": "edge24",
+      "fromNode": "confirm-next-steps",
+      "toNode": "professional-close",
+      "color": "2"
+    },
+    {
+      "id": "edge25",
+      "fromNode": "has-agent-yes",
+      "toNode": "graceful-exit",
+      "color": "1"
+    },
+    {
+      "id": "edge26",
+      "fromNode": "response-no-photos",
+      "toNode": "property-highlights",
+      "color": "5"
+    },
+    {
+      "id": "edge27",
+      "fromNode": "property-highlights",
+      "toNode": "interest-level-high",
+      "color": "4"
+    },
+    {
+      "id": "edge28",
+      "fromNode": "property-highlights",
+      "toNode": "interest-level-medium",
+      "color": "5"
+    },
+    {
+      "id": "edge29",
+      "fromNode": "property-highlights",
+      "toNode": "interest-level-low",
+      "color": "1"
+    },
+    {
+      "id": "edge30",
+      "fromNode": "seller-scenario",
+      "toNode": "confirm-next-steps",
+      "color": "4"
+    }
+  ]
+}
