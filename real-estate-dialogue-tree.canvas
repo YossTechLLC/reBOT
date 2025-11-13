@@ -1,0 +1,662 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "text",
+      "text": "**START**\n\n\"Hi [NAME], this is Emily, how are you?\"",
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "well",
+      "type": "text",
+      "text": "**RESPONSE:** Good/Fine/Well\n\n**YOU:** \"I'm doing well, thanks!\"",
+      "x": 0,
+      "y": 180,
+      "width": 280,
+      "height": 120,
+      "color": "5"
+    },
+    {
+      "id": "intro",
+      "type": "text",
+      "text": "**YOU:**\n\n\"Just to be upfront, this is not a sales call. I'm with METHOD Real Estate Advisors and I'm just reaching out to be an asset in your home buying journey. Is there anything you had in mind when you filled out the form on our website?\"",
+      "x": 0,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "color": "2"
+    },
+    {
+      "id": "r1-interested",
+      "type": "text",
+      "text": "**RESPONSE:**\n\"Yes, interested in the property\"",
+      "x": -600,
+      "y": 640,
+      "width": 260,
+      "height": 100,
+      "color": "5"
+    },
+    {
+      "id": "r2-just-looking",
+      "type": "text",
+      "text": "**RESPONSE:**\n\"Just looking/browsing\"",
+      "x": -300,
+      "y": 640,
+      "width": 260,
+      "height": 100,
+      "color": "5"
+    },
+    {
+      "id": "r3-questions",
+      "type": "text",
+      "text": "**RESPONSE:**\n\"Have questions about it\"",
+      "x": 0,
+      "y": 640,
+      "width": 260,
+      "height": 100,
+      "color": "5"
+    },
+    {
+      "id": "r4-not-interested",
+      "type": "text",
+      "text": "**RESPONSE:**\n\"Not interested right now\"",
+      "x": 300,
+      "y": 640,
+      "width": 260,
+      "height": 100,
+      "color": "5"
+    },
+    {
+      "id": "r5-see-it",
+      "type": "text",
+      "text": "**RESPONSE:**\n\"When can I see it?\"",
+      "x": 600,
+      "y": 640,
+      "width": 260,
+      "height": 100,
+      "color": "5"
+    },
+    {
+      "id": "a1-interested",
+      "type": "text",
+      "text": "**YOU:**\n\"Great! What drew you to this property specifically?\"",
+      "x": -600,
+      "y": 800,
+      "width": 260,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "a2-just-looking",
+      "type": "text",
+      "text": "**YOU:**\n\"No pressure at all. Are you in the early stages or getting more serious about buying?\"",
+      "x": -300,
+      "y": 800,
+      "width": 260,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "a3-questions",
+      "type": "text",
+      "text": "**YOU:**\n\"Happy to help! What would you like to know?\"",
+      "x": 0,
+      "y": 800,
+      "width": 260,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "a4-not-interested",
+      "type": "text",
+      "text": "**YOU:**\n\"I totally understand. Mind if I ask—is the timing not right, or looking for something different?\"",
+      "x": 300,
+      "y": 800,
+      "width": 260,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "a5-see-it",
+      "type": "text",
+      "text": "**YOU:**\n\"Love the enthusiasm! Are you pre-approved or working with a lender yet?\"",
+      "x": 600,
+      "y": 800,
+      "width": 260,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "b1-listen",
+      "type": "text",
+      "text": "**LISTEN** to their answer\n\n**YOU:**\n\"That makes sense. Have you seen the area in person yet?\"",
+      "x": -600,
+      "y": 960,
+      "width": 260,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "b2-early",
+      "type": "text",
+      "text": "**IF EARLY:**\n\"Perfect. What's your timeline looking like?\"",
+      "x": -420,
+      "y": 980,
+      "width": 220,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "b2-serious",
+      "type": "text",
+      "text": "**IF SERIOUS:**\n\"Great! Are you working with a lender yet?\"",
+      "x": -180,
+      "y": 980,
+      "width": 220,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "b3-answer",
+      "type": "text",
+      "text": "**ANSWER** their question briefly\n\n**YOU:**\n\"Would you like to schedule a showing?\"",
+      "x": 0,
+      "y": 960,
+      "width": 260,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "b4-timing",
+      "type": "text",
+      "text": "**IF TIMING:**\n\"Makes sense. When might you be ready?\"",
+      "x": 240,
+      "y": 1000,
+      "width": 220,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "b4-different",
+      "type": "text",
+      "text": "**IF DIFFERENT:**\n\"Got it. What are you looking for?\"",
+      "x": 480,
+      "y": 1000,
+      "width": 220,
+      "height": 100,
+      "color": "2"
+    },
+    {
+      "id": "b5-yes",
+      "type": "text",
+      "text": "**IF YES:**\n\"Excellent. Let me schedule a showing. Any days that work best?\"",
+      "x": 520,
+      "y": 980,
+      "width": 240,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "b5-no",
+      "type": "text",
+      "text": "**IF NO:**\n\"No worries. Getting pre-approved helps us move fast in this market. I can connect you with a great lender.\"",
+      "x": 780,
+      "y": 980,
+      "width": 240,
+      "height": 160,
+      "color": "2"
+    },
+    {
+      "id": "c1-yes-area",
+      "type": "text",
+      "text": "**IF YES:**\n\"Perfect! Would you like to see the inside this week?\"",
+      "x": -720,
+      "y": 1160,
+      "width": 220,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "c1-no-area",
+      "type": "text",
+      "text": "**IF NO:**\n\"I can give you a neighborhood tour when we view the property. This week work?\"",
+      "x": -480,
+      "y": 1160,
+      "width": 220,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "c2-timeline",
+      "type": "text",
+      "text": "**LISTEN** to timeline\n\n**YOU:**\n\"I'll keep you updated on new listings. Can I send you properties as they come up?\"",
+      "x": -300,
+      "y": 1140,
+      "width": 240,
+      "height": 160,
+      "color": "2"
+    },
+    {
+      "id": "c2-lender",
+      "type": "text",
+      "text": "**LISTEN** to response\n\n**YOU:**\n\"Getting pre-approved opens doors. I can intro you to trusted lenders if helpful.\"",
+      "x": -40,
+      "y": 1140,
+      "width": 240,
+      "height": 160,
+      "color": "2"
+    },
+    {
+      "id": "c3-yes-showing",
+      "type": "text",
+      "text": "**IF YES:**\n\"Great! Let me check availability. When works for you?\"",
+      "x": -60,
+      "y": 1160,
+      "width": 220,
+      "height": 120,
+      "color": "3"
+    },
+    {
+      "id": "c3-no-showing",
+      "type": "text",
+      "text": "**IF NO:**\n\"No problem. Want me to send similar properties?\"",
+      "x": 180,
+      "y": 1160,
+      "width": 220,
+      "height": 100,
+      "color": "3"
+    },
+    {
+      "id": "c4-timing-resp",
+      "type": "text",
+      "text": "**LISTEN** to timeline\n\n**YOU:**\n\"I'll keep an eye out. Can I check in with you then?\"",
+      "x": 240,
+      "y": 1160,
+      "width": 220,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "c4-criteria",
+      "type": "text",
+      "text": "**LISTEN** to criteria\n\n**YOU:**\n\"I can definitely help. Let me send you some options this week.\"",
+      "x": 480,
+      "y": 1160,
+      "width": 220,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "c5-schedule",
+      "type": "text",
+      "text": "**SCHEDULE** showing\n\n**YOU:**\n\"Perfect. I'll text you confirmation and see you then!\"",
+      "x": 520,
+      "y": 1180,
+      "width": 240,
+      "height": 120,
+      "color": "2"
+    },
+    {
+      "id": "c5-lender",
+      "type": "text",
+      "text": "**DISCUSS** lender options\n\n**YOU:**\n\"I'll text you their info. Once pre-approved, we can set up showings.\"",
+      "x": 780,
+      "y": 1180,
+      "width": 240,
+      "height": 140,
+      "color": "2"
+    },
+    {
+      "id": "close1",
+      "type": "text",
+      "text": "**CLOSE:**\n\n\"I'll follow up by text with the details. Sound good?\"",
+      "x": -600,
+      "y": 1360,
+      "width": 260,
+      "height": 120,
+      "color": "4"
+    },
+    {
+      "id": "close2",
+      "type": "text",
+      "text": "**CLOSE:**\n\n\"I'll text you some listings this week. Keep my number handy if questions come up!\"",
+      "x": -180,
+      "y": 1360,
+      "width": 260,
+      "height": 140,
+      "color": "4"
+    },
+    {
+      "id": "close3",
+      "type": "text",
+      "text": "**CLOSE:**\n\n\"I'll send over times and confirmation. Looking forward to it!\"",
+      "x": 120,
+      "y": 1360,
+      "width": 260,
+      "height": 120,
+      "color": "4"
+    },
+    {
+      "id": "close4",
+      "type": "text",
+      "text": "**CLOSE:**\n\n\"I'll check in with you then. Thanks for your time today!\"",
+      "x": 240,
+      "y": 1540,
+      "width": 260,
+      "height": 120,
+      "color": "4"
+    },
+    {
+      "id": "close5",
+      "type": "text",
+      "text": "**CLOSE:**\n\n\"I'll text you the lender info and follow up next week. Deal?\"",
+      "x": 650,
+      "y": 1380,
+      "width": 260,
+      "height": 120,
+      "color": "4"
+    },
+    {
+      "id": "final-yes",
+      "type": "text",
+      "text": "**THEM:** \"Sounds good!\"\n\n**YOU:** \"Great talking with you, [NAME]. Have a wonderful day!\"",
+      "x": 0,
+      "y": 1700,
+      "width": 300,
+      "height": 140,
+      "color": "1"
+    },
+    {
+      "id": "next-steps-box",
+      "type": "text",
+      "text": "**📋 NEXT STEPS (immediately after call):**\n\n1. Send text with promised info within 15 min\n2. Add to CRM with notes from call\n3. Set reminder for follow-up\n4. If showing scheduled: Calendar invite\n5. If sending listings: Prepare 3-5 options\n6. If lender intro: Warm introduction via email",
+      "x": -200,
+      "y": 1900,
+      "width": 500,
+      "height": 240,
+      "color": "6"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "start",
+      "toNode": "well",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "fromNode": "well",
+      "toNode": "intro",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "fromNode": "intro",
+      "toNode": "r1-interested",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "fromNode": "intro",
+      "toNode": "r2-just-looking",
+      "label": ""
+    },
+    {
+      "id": "e5",
+      "fromNode": "intro",
+      "toNode": "r3-questions",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "fromNode": "intro",
+      "toNode": "r4-not-interested",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "fromNode": "intro",
+      "toNode": "r5-see-it",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "fromNode": "r1-interested",
+      "toNode": "a1-interested",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "fromNode": "r2-just-looking",
+      "toNode": "a2-just-looking",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "fromNode": "r3-questions",
+      "toNode": "a3-questions",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "fromNode": "r4-not-interested",
+      "toNode": "a4-not-interested",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "fromNode": "r5-see-it",
+      "toNode": "a5-see-it",
+      "label": ""
+    },
+    {
+      "id": "e13",
+      "fromNode": "a1-interested",
+      "toNode": "b1-listen",
+      "label": ""
+    },
+    {
+      "id": "e14",
+      "fromNode": "a2-just-looking",
+      "toNode": "b2-early",
+      "label": ""
+    },
+    {
+      "id": "e15",
+      "fromNode": "a2-just-looking",
+      "toNode": "b2-serious",
+      "label": ""
+    },
+    {
+      "id": "e16",
+      "fromNode": "a3-questions",
+      "toNode": "b3-answer",
+      "label": ""
+    },
+    {
+      "id": "e17",
+      "fromNode": "a4-not-interested",
+      "toNode": "b4-timing",
+      "label": ""
+    },
+    {
+      "id": "e18",
+      "fromNode": "a4-not-interested",
+      "toNode": "b4-different",
+      "label": ""
+    },
+    {
+      "id": "e19",
+      "fromNode": "a5-see-it",
+      "toNode": "b5-yes",
+      "label": ""
+    },
+    {
+      "id": "e20",
+      "fromNode": "a5-see-it",
+      "toNode": "b5-no",
+      "label": ""
+    },
+    {
+      "id": "e21",
+      "fromNode": "b1-listen",
+      "toNode": "c1-yes-area",
+      "label": ""
+    },
+    {
+      "id": "e22",
+      "fromNode": "b1-listen",
+      "toNode": "c1-no-area",
+      "label": ""
+    },
+    {
+      "id": "e23",
+      "fromNode": "b2-early",
+      "toNode": "c2-timeline",
+      "label": ""
+    },
+    {
+      "id": "e24",
+      "fromNode": "b2-serious",
+      "toNode": "c2-lender",
+      "label": ""
+    },
+    {
+      "id": "e25",
+      "fromNode": "b3-answer",
+      "toNode": "c3-yes-showing",
+      "label": ""
+    },
+    {
+      "id": "e26",
+      "fromNode": "b3-answer",
+      "toNode": "c3-no-showing",
+      "label": ""
+    },
+    {
+      "id": "e27",
+      "fromNode": "b4-timing",
+      "toNode": "c4-timing-resp",
+      "label": ""
+    },
+    {
+      "id": "e28",
+      "fromNode": "b4-different",
+      "toNode": "c4-criteria",
+      "label": ""
+    },
+    {
+      "id": "e29",
+      "fromNode": "b5-yes",
+      "toNode": "c5-schedule",
+      "label": ""
+    },
+    {
+      "id": "e30",
+      "fromNode": "b5-no",
+      "toNode": "c5-lender",
+      "label": ""
+    },
+    {
+      "id": "e31",
+      "fromNode": "c1-yes-area",
+      "toNode": "close1",
+      "label": ""
+    },
+    {
+      "id": "e32",
+      "fromNode": "c1-no-area",
+      "toNode": "close1",
+      "label": ""
+    },
+    {
+      "id": "e33",
+      "fromNode": "c2-timeline",
+      "toNode": "close2",
+      "label": ""
+    },
+    {
+      "id": "e34",
+      "fromNode": "c2-lender",
+      "toNode": "close2",
+      "label": ""
+    },
+    {
+      "id": "e35",
+      "fromNode": "c3-yes-showing",
+      "toNode": "close3",
+      "label": ""
+    },
+    {
+      "id": "e36",
+      "fromNode": "c3-no-showing",
+      "toNode": "close3",
+      "label": ""
+    },
+    {
+      "id": "e37",
+      "fromNode": "c4-timing-resp",
+      "toNode": "close4",
+      "label": ""
+    },
+    {
+      "id": "e38",
+      "fromNode": "c4-criteria",
+      "toNode": "close2",
+      "label": ""
+    },
+    {
+      "id": "e39",
+      "fromNode": "c5-schedule",
+      "toNode": "close5",
+      "label": ""
+    },
+    {
+      "id": "e40",
+      "fromNode": "c5-lender",
+      "toNode": "close5",
+      "label": ""
+    },
+    {
+      "id": "e41",
+      "fromNode": "close1",
+      "toNode": "final-yes",
+      "label": ""
+    },
+    {
+      "id": "e42",
+      "fromNode": "close2",
+      "toNode": "final-yes",
+      "label": ""
+    },
+    {
+      "id": "e43",
+      "fromNode": "close3",
+      "toNode": "final-yes",
+      "label": ""
+    },
+    {
+      "id": "e44",
+      "fromNode": "close4",
+      "toNode": "final-yes",
+      "label": ""
+    },
+    {
+      "id": "e45",
+      "fromNode": "close5",
+      "toNode": "final-yes",
+      "label": ""
+    },
+    {
+      "id": "e46",
+      "fromNode": "final-yes",
+      "toNode": "next-steps-box",
+      "label": ""
+    }
+  ]
+}
