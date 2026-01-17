@@ -1,4 +1,0 @@
-[submodule "GOOGLE/timesfm"]
-	path = GOOGLE/timesfm
-	url = https://github.com/YossTechLLC/timesfm.git
-	branch = master

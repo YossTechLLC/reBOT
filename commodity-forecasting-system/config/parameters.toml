@@ -1,0 +1,596 @@
+# config/parameters.toml
+# HMM-Black-Scholes Commodity Forecasting System - Master Parameter File
+
+[meta]
+version = "1.0.0"
+last_updated = "2026-01-16"
+author = "Quantitative Research Team"
+description = "Master configuration for commodity forecasting system"
+
+[commodity]
+# Primary commodity to forecast
+# Options: "GC=F" (Gold), "CL=F" (Crude Oil), "SI=F" (Silver), "NG=F" (Natural Gas)
+# Type: string
+# Impact: Determines which commodity data to fetch and analyze
+ticker = "GC=F"
+name = "Gold Futures"
+
+[data]
+# Historical data period
+# Type: date string (YYYY-MM-DD)
+# Impact: More historical data provides better regime detection but slower training
+start_date = "2015-01-01"
+end_date = "2026-01-15"
+
+# Data source priority (1=highest)
+[data.sources]
+yfinance = 1
+alpha_vantage = 2
+quandl = 3
+
+# Preprocessing parameters
+[data.preprocessing]
+# Handle missing data
+# Type: string
+# Options: "ffill" (forward fill), "interpolate" (linear interpolation), "drop" (remove)
+# Default: "ffill"
+# Impact: "ffill" preserves data points but may propagate stale values
+missing_method = "ffill"
+
+# Outlier detection method
+# Type: string
+# Options: "zscore", "iqr", "isolation_forest"
+# Default: "zscore"
+# Impact: More aggressive outlier detection may remove valid extreme events
+outlier_method = "zscore"
+
+# Z-score threshold for outlier detection
+# Type: float
+# Range: [2.0, 4.0]
+# Default: 3.0 (99.7% confidence interval)
+# Impact: Lower threshold removes more outliers, risk of removing valid volatility spikes
+outlier_threshold = 3.0
+
+# Stationarity transformation
+# Type: string
+# Options: "returns", "log_returns", "diff", "none"
+# Default: "log_returns" (recommended for price data)
+# Impact: Log returns better handle percentage changes and heteroskedasticity
+transformation = "log_returns"
+
+[features]
+# Technical indicators to compute
+# Type: list of strings
+# Available: see ta library documentation
+# Impact: More indicators provide richer features but risk overfitting
+indicators = [
+  "sma_20", "sma_50", "sma_200",
+  "ema_12", "ema_26",
+  "rsi_14",
+  "macd",
+  "bollinger_bands",
+  "atr_14",
+  "obv"
+]
+
+# Macroeconomic features from FRED
+# Type: list of strings (FRED series IDs)
+# Impact: Macro features capture broader market conditions
+fred_series = [
+  "DGS10",      # 10-Year Treasury Rate
+  "DTWEXBGS",   # Trade Weighted USD Index
+  "CPIAUCSL",   # CPI
+  "VIXCLS"      # VIX
+]
+
+# Lagged features
+# Type: integer
+# Range: [1, 60]
+# Default: 10
+# Impact: More lags = more context but risk of overfitting and slower training
+# Sensitivity: MEDIUM
+max_lags = 10
+
+[hmm]
+# Number of hidden states (market regimes)
+# Type: integer
+# Range: [2, 6]
+# Default: 3 (bull, bear, neutral)
+# Impact: More states = more granular regimes but overfitting risk
+# Sensitivity: HIGH
+# Optimal Range: [2, 4] for most commodities
+n_states = 3
+
+# Covariance structure
+# Type: string
+# Options: "diag", "full", "spherical", "tied"
+# Default: "diag" (balance of flexibility and stability)
+# Impact:
+#   - "diag": Independent variances per feature (recommended)
+#   - "full": Captures feature correlations (needs more data)
+#   - "spherical": Same variance for all features (strong regularization)
+#   - "tied": All states share covariance structure
+# Sensitivity: MEDIUM
+# Guidelines: Use "diag" unless you have >1000 observations and many features
+covariance_type = "diag"
+
+# Maximum EM iterations
+# Type: integer
+# Range: [100, 5000]
+# Default: 1000
+# Impact: More iterations = better convergence but longer training
+# Sensitivity: LOW
+n_iter = 1000
+
+# Convergence tolerance
+# Type: float
+# Range: [1e-6, 1e-2]
+# Default: 1e-4
+# Impact: Smaller = more precise but slower
+# Sensitivity: LOW
+tol = 1e-4
+
+# Multiple random initializations (avoid local optima)
+# Type: integer
+# Range: [5, 50]
+# Default: 10
+# Impact: More inits = better global optimum but slower
+# Sensitivity: MEDIUM
+# Recommendation: 10 for prototyping, 20-30 for production
+n_random_inits = 10
+
+# Random seed for reproducibility
+# Type: integer
+# Impact: Set for reproducible results, null for random
+random_seed = 42
+
+[black_scholes]
+# Model variant
+# Type: string
+# Options: "black76" (futures), "bsm" (equity-style)
+# Default: "black76" (appropriate for commodity futures)
+model_type = "black76"
+
+# Risk-free rate source
+# Type: string
+# Options: "constant", "fred_dgs10", "curve"
+# Default: "fred_dgs10" (use 10-year Treasury as proxy)
+# Impact: Dynamic rates reflect current market conditions
+rate_source = "fred_dgs10"
+
+# Constant risk-free rate (if rate_source = "constant")
+# Type: float
+# Range: [0.0, 0.10]
+# Default: 0.035 (3.5% reflecting 2026 environment)
+# Impact: Fixed rate simplifies calculation but may be inaccurate
+constant_rate = 0.035
+
+# Convenience yield estimation method
+# Type: string
+# Options: "fitted", "futures_curve", "constant"
+# Default: "futures_curve" (back out from futures prices)
+# Impact: Futures curve method most accurate for liquid markets
+convenience_yield_method = "futures_curve"
+
+# Volatility estimation approach
+# Type: string
+# Options: "historical", "garch", "realized", "implied", "hybrid"
+# Default: "hybrid" (combines GARCH + realized)
+# Impact: Hybrid approach balances historical and forward-looking estimates
+# Sensitivity: HIGH
+volatility_method = "hybrid"
+
+# Historical volatility window (days)
+# Type: integer
+# Range: [20, 252]
+# Default: 60 (~3 months)
+# Impact: Shorter window more responsive to recent volatility, longer window smoother
+# Sensitivity: MEDIUM
+hist_vol_window = 60
+
+# GARCH model specification
+[black_scholes.garch]
+# GARCH lag order
+# Type: integer
+# Default: 1 (GARCH(1,1) most common in practice)
+p = 1
+
+# ARCH lag order
+# Type: integer
+# Default: 1
+q = 1
+
+# Option parameters
+[black_scholes.options]
+# Time to maturity (days)
+# Type: list of integers
+# Default: multiple maturities for surface construction
+# Impact: More maturities = richer volatility surface
+maturities = [30, 60, 90, 180, 365]
+
+# Strike prices relative to spot (percentage)
+# Type: list of floats
+# Example: [0.9, 0.95, 1.0, 1.05, 1.1] for 90%-110% strikes
+# Impact: Wider strike range captures full volatility smile
+strike_ratios = [0.90, 0.95, 1.00, 1.05, 1.10]
+
+# Numerical parameters for Black-Scholes calculations
+# Type: float
+# Impact: Controls precision of numerical methods
+epsilon = 1e-8
+max_iterations = 100
+iv_tolerance = 1e-6
+
+[volatility]
+# Volatility estimation parameters
+# Annualization factor (trading days per year)
+# Type: integer
+# Default: 252 (U.S. market standard)
+# Impact: Converts daily volatility to annualized
+annualization_factor = 252
+
+# Historical volatility window (days)
+# Type: integer
+# Range: [20, 252]
+# Default: 30
+# Impact: Shorter window more responsive, longer window smoother
+historical_window = 30
+
+# GARCH specification
+# Type: integer
+# Default: 1 (GARCH(1,1) standard)
+garch_p = 1
+garch_q = 1
+
+# Hybrid volatility weights
+# Type: float (must sum to 1.0)
+# Default: balanced across methods
+# Impact: Controls contribution of each volatility estimator
+[volatility.hybrid_weights]
+historical = 0.4
+garch = 0.4
+realized = 0.2
+
+[interest_rates]
+# Risk-free rate parameters
+# Default rate if FRED unavailable (decimal)
+# Type: float
+# Range: [0.0, 0.15]
+# Default: 0.05 (5%)
+default_rate = 0.05
+
+# Cache duration for fetched rates (hours)
+# Type: integer
+# Default: 24 (refresh daily)
+# Impact: Longer cache reduces API calls but may use stale rates
+cache_duration_hours = 24
+
+[convenience_yield]
+# Convenience yield estimation parameters
+# Reasonable bounds for convenience yield (decimal)
+# Type: float
+# Default: [-0.20, 0.40]
+# Impact: Prevents unreasonable yield estimates
+min_yield = -0.20
+max_yield = 0.40
+
+# Default convenience yield if estimation fails
+# Type: float
+# Default: 0.05 (5%)
+default_yield = 0.05
+
+[volatility_surface]
+# Volatility surface construction parameters
+# Grid dimensions
+# Type: integer
+# Impact: Finer grid = smoother surface but slower computation
+n_strikes = 15
+n_maturities = 10
+
+# Strike range as percentage of spot
+# Type: float
+# Range: [0.1, 0.5]
+# Default: 0.30 (±30% around spot)
+# Impact: Wider range captures full smile but may have sparse data
+strike_range_pct = 0.30
+
+[api_keys]
+# API keys for external data sources
+# Type: string (optional)
+# Impact: Required for specific data sources
+# Security: NEVER commit actual keys to version control
+# Use environment variables: export FRED_API_KEY="your_key_here"
+fred = ""  # Get from https://fred.stlouisfed.org/docs/api/api_key.html
+alpha_vantage = ""  # Get from https://www.alphavantage.co/support/#api-key
+quandl = ""  # Get from https://www.quandl.com/sign-up
+
+[timesfm]
+# Optional TimesFM integration
+# Enable TimesFM as complementary forecaster
+# Type: boolean
+# Impact: TimesFM provides long-context forecasting capability
+enabled = false
+
+# Model variant
+# Type: string
+# Options: "torch", "flax"
+# Default: "torch" (better compatibility)
+# Impact: Flax may be faster on some hardware
+backend = "torch"
+
+# Hugging Face checkpoint
+# Type: string
+# Default: "google/timesfm-2.5-200m-pytorch"
+# Impact: Different checkpoints have different characteristics
+checkpoint = "google/timesfm-2.5-200m-pytorch"
+
+# Forecast configuration
+# Type: integer
+# Range: [1, 16384]
+# Default: 1024
+# Impact: Longer context captures more historical patterns
+max_context = 1024
+
+# Maximum forecast horizon
+# Type: integer
+# Range: [1, 1024]
+# Default: 256
+# Impact: Longer horizon enables multi-period forecasting
+max_horizon = 256
+
+# Normalize inputs
+# Type: boolean
+# Default: true
+# Impact: Normalization improves numerical stability
+normalize_inputs = true
+
+# Use continuous quantile head
+# Type: boolean
+# Default: true
+# Impact: Provides distributional forecasts, not just point estimates
+use_continuous_quantile_head = true
+
+# Force flip invariance
+# Type: boolean
+# Default: true
+# Impact: Ensures consistent quantile ordering
+force_flip_invariance = true
+
+# Infer if data is positive
+# Type: boolean
+# Default: true (appropriate for prices)
+# Impact: Constrains forecasts to positive domain
+infer_is_positive = true
+
+# Fix quantile crossing
+# Type: boolean
+# Default: true
+# Impact: Ensures quantiles don't cross (mathematical consistency)
+fix_quantile_crossing = true
+
+# Integration mode
+# Type: string
+# Options: "ensemble", "primary", "regime_input"
+# Default: "ensemble"
+# Modes:
+#   - ensemble: average TimesFM and HMM predictions
+#   - primary: use TimesFM, HMM only for regime
+#   - regime_input: feed HMM regime states to TimesFM as features
+# Impact: Different modes leverage different model strengths
+integration_mode = "ensemble"
+
+[validation]
+# Train/test split strategy
+# Type: string
+# Options: "walk_forward", "expanding_window", "rolling_window"
+# Default: "walk_forward" (most realistic for time series)
+# Impact: Walk-forward prevents lookahead bias
+strategy = "walk_forward"
+
+# Walk-forward parameters
+# Training window (days)
+# Type: integer
+# Default: 756 (~3 years)
+# Impact: Longer window captures more regimes but may include stale patterns
+train_window_days = 756
+
+# Test window (days)
+# Type: integer
+# Default: 63 (~3 months)
+# Impact: Longer test period more robust but slower validation
+test_window_days = 63
+
+# Step size (days)
+# Type: integer
+# Default: 21 (~1 month)
+# Impact: Smaller steps = more validation folds but slower
+step_size_days = 21
+
+# Cross-validation folds
+# Type: integer
+# Default: 5
+# Impact: More folds = more robust estimates but slower
+n_splits = 5
+
+# Metrics to compute
+# Type: list of strings
+# Impact: Comprehensive metrics provide full performance picture
+metrics = [
+  "rmse", "mae", "mape", "dstat",
+  "sharpe_ratio", "calmar_ratio", "max_drawdown"
+]
+
+# Backtesting
+[validation.backtesting]
+# Initial capital ($)
+# Type: float
+# Default: 100,000
+# Impact: Determines position sizing and returns
+initial_capital = 100000.0
+
+# Transaction cost (basis points)
+# Type: integer
+# Default: 5 (0.05%)
+# Impact: Higher costs penalize frequent trading
+transaction_cost_bps = 5
+
+# Slippage (basis points)
+# Type: integer
+# Default: 2 (0.02%)
+# Impact: Models realistic execution costs
+slippage_bps = 2
+
+# Position size (% of capital per trade)
+# Type: float
+# Range: [0.0, 1.0]
+# Default: 0.25 (25% of capital)
+# Impact: Larger positions = higher returns but higher risk
+position_size_pct = 0.25
+
+[optimization]
+# Enable hyperparameter optimization
+# Type: boolean
+# Default: true
+# Impact: Automated tuning finds better parameters
+enabled = true
+
+# Framework
+# Type: string
+# Options: "optuna", "ray_tune"
+# Default: "optuna" (recommended - 35% faster than deprecated Hyperopt)
+framework = "optuna"
+
+# Optuna settings
+[optimization.optuna]
+# Number of trials
+# Type: integer
+# Range: [10, 1000]
+# Default: 100
+# Impact: More trials = better optimization but slower
+n_trials = 100
+
+# Timeout (seconds)
+# Type: integer
+# Default: 3600 (1 hour)
+# Impact: Limits total optimization time
+timeout_seconds = 3600
+
+# Pruning to stop unpromising trials early
+# Type: string
+# Options: "median", "hyperband", "none"
+# Default: "median"
+# Impact: Pruning saves time by stopping poor trials
+pruner = "median"
+
+# Sampler for search space exploration
+# Type: string
+# Options: "tpe", "random", "grid"
+# Default: "tpe" (Tree-structured Parzen Estimator - most efficient)
+# Impact: TPE is adaptive and typically outperforms random search
+sampler = "tpe"
+
+# Search spaces for key parameters
+[optimization.search_spaces]
+
+[optimization.search_spaces.hmm_n_states]
+type = "int"
+low = 2
+high = 6
+
+[optimization.search_spaces.hmm_covariance]
+type = "categorical"
+choices = ["diag", "full", "spherical"]
+
+[optimization.search_spaces.learning_rate]
+type = "loguniform"
+low = 1e-5
+high = 1e-1
+
+[sensitivity]
+# Sensitivity analysis method
+# Type: string
+# Options: "one_at_a_time", "sobol", "morris"
+# Default: "one_at_a_time" (simple and interpretable)
+# Impact: Sobol provides global sensitivity but much slower
+method = "one_at_a_time"
+
+# Parameters to analyze
+# Type: list of strings
+# Impact: Focus on high-impact parameters
+parameters = [
+  "hmm.n_states",
+  "hmm.n_iter",
+  "black_scholes.hist_vol_window",
+  "features.max_lags"
+]
+
+# Perturbation percentage
+# Type: float
+# Range: [0.01, 0.50]
+# Default: 0.1 (±10%)
+# Impact: Larger perturbations test robustness to parameter changes
+perturbation_pct = 0.1
+
+[ui]
+# Streamlit configuration
+# Type: string
+# Options: "light", "dark"
+# Default: "dark"
+# Impact: Visual preference
+theme = "dark"
+
+# Port
+# Type: integer
+# Default: 8501
+# Impact: Network port for Streamlit server
+port = 8501
+
+# Dashboard refresh interval (seconds)
+# Type: integer
+# Default: 60
+# Impact: More frequent updates = more current data but higher load
+refresh_interval = 60
+
+# Enable real-time mode
+# Type: boolean
+# Default: false (requires WebSocket data source)
+# Impact: Real-time mode streams live market data
+realtime_enabled = false
+
+[logging]
+# Logging level
+# Type: string
+# Options: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+# Default: "INFO"
+# Impact: Lower levels produce more verbose logs
+level = "INFO"
+
+# Log format
+# Type: string
+# Default: Standard Python logging format
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Log file path
+# Type: string
+# Default: "logs/system.log"
+# Impact: Centralized logging for debugging
+file = "logs/system.log"
+
+[mlflow]
+# MLflow tracking URI
+# Type: string
+# Default: "./experiments" (local file-based tracking)
+# Impact: Can point to remote MLflow server for team collaboration
+tracking_uri = "./experiments"
+
+# Experiment name
+# Type: string
+# Default: "commodity-forecasting"
+# Impact: Organizes runs under a common experiment
+experiment_name = "commodity-forecasting"
+
+# Auto-logging
+# Type: boolean
+# Default: true
+# Impact: Automatically log parameters, metrics, and artifacts
+auto_log = true
