@@ -431,22 +431,37 @@ class TimesFMHMMEnsemble:
         Returns
         -------
         pd.DataFrame
-            Features for HMM (returns, volatility, etc.)
+            Features for HMM (returns, volatility, momentum, range)
         """
-        required_cols = ['returns', 'volatility_5']
+        # Get features that HMM was trained on
+        if hasattr(self.hmm, 'feature_names') and self.hmm.feature_names:
+            required_cols = self.hmm.feature_names
+        else:
+            # Default feature set
+            required_cols = ['returns', 'volatility_5', 'volatility_10',
+                           'momentum_5', 'range']
 
         # Check if features already present
         if all(col in context.columns for col in required_cols):
             return context[required_cols].dropna()
 
-        # Compute basic features if missing
+        # Compute features if missing
         features = pd.DataFrame(index=context.index)
 
         if 'close' in context.columns:
             features['returns'] = context['close'].pct_change()
             features['volatility_5'] = features['returns'].rolling(5).std()
+            features['volatility_10'] = features['returns'].rolling(10).std()
 
-        return features.dropna()
+        if 'close' in context.columns:
+            features['momentum_5'] = context['close'] / context['close'].shift(5) - 1
+
+        if 'high' in context.columns and 'low' in context.columns and 'close' in context.columns:
+            features['range'] = (context['high'] - context['low']) / context['close']
+
+        # Return only columns that HMM expects
+        available_cols = [col for col in required_cols if col in features.columns]
+        return features[available_cols].dropna()
 
     def _infer_frequency(self, index: pd.DatetimeIndex) -> str:
         """

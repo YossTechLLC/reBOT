@@ -8,7 +8,15 @@
       "Bash(if [ -f \"10-6/data/cookies/fmls_session_state.json\" ])",
       "Bash(then cat 10-6/data/cookies/fmls_session_state.json)",
       "Bash(else echo \"Session state file not found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(wc:*)",
+      "Bash(pip install:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(ls:*)",
+      "Bash(tee:*)",
+      "Bash(source:*)",
+      "Bash(source .venv/bin/activate)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

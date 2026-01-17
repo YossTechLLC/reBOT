@@ -34,7 +34,8 @@
       "Bash(git ls-tree:*)",
       "Bash(git cat-file:*)",
       "Bash(git rm:*)",
-      "Bash(echo \"   ✗ NO\" __NEW_LINE_1f5bf830e2882f96__ cat <<'EOF'\n\n=== END VERIFICATION ===\nEOF)"
+      "Bash(echo \"   ✗ NO\" __NEW_LINE_1f5bf830e2882f96__ cat <<'EOF'\n\n=== END VERIFICATION ===\nEOF)",
+      "Bash(grep:*)"
     ]
   }
 }

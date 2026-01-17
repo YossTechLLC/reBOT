@@ -1,10 +1,21 @@
-# claude operating guide for /timesfm (submodule)
+# claude operating guide for reBOT (unified repository)
 
-purpose: help the user build, run, troubleshoot, and extend **timesfm** with professional-grade engineering (correctness -> security -> performance).
+purpose: help the user build, run, troubleshoot, and extend **reBOT** (including timesfm and commodity-forecasting-system) with professional-grade engineering (correctness -> security -> performance).
+
+## ⚠️ CRITICAL: GIT COMMIT POLICY (NON-NEGOTIABLE) ⚠️
+
+**DO NOT CREATE GIT COMMITS UNLESS EXPLICITLY INSTRUCTED BY THE USER.**
+
+- The user performs git commits manually themselves.
+- You may stage files with `git add` if requested, but NEVER run `git commit` unless the user explicitly asks you to commit.
+- You may run `git status`, `git diff`, `git log` for informational purposes.
+- When you complete work, tell the user what files changed and let THEM decide when to commit.
+- This rule applies to ALL git operations - no auto-commits, no "helpful" commits, no commits as part of workflows.
+- EXCEPTION: Only create commits when the user explicitly says "commit this" or "make a commit" or similar direct instruction.
 
 ## 1) scope and safety (non-negotiable)
 
-- hard scope: read/write only inside the `/timesfm/` directory tree (this repo is a git submodule).
+- hard scope: read/write anywhere inside the `/reBOT/` directory tree (unified repository, no submodules).
 - no secrets: never print, log, paste, or commit secrets/keys/tokens/credentials. redact if you must reference them.
 - no surprise destruction: do not run destructive commands (rm -rf, git reset --hard, dropping tables, deleting checkpoints) unless explicitly requested.
 - be deterministic: prefer reproducible steps, pinned versions when asked, and minimal diffs.
@@ -17,13 +28,23 @@ treat the local filesystem as the source of truth. first run:
 - `ls -la`
 - `find . -maxdepth 2 -type f -name 'pyproject.toml' -o -name 'README*' -o -name '*.md'`
 
-expected high-level layout in this repo:
+expected high-level layout in this unified repo:
 
-- `pyproject.toml`: python packaging, tooling config, optional extras.
-- `src/timesfm/`: primary python package (model loading, inference helpers).
-- `notebooks/`: runnable examples.
-- `peft/` (or similarly named): finetune/peft scripts and examples.
-- `v1/`: legacy code paths and/or older training utilities.
+- `/reBOT/` (root)
+  - `GOOGLE/timesfm/`: TimesFM forecasting model (formerly submodule, now regular directory)
+    - `src/timesfm/`: primary python package (model loading, inference helpers)
+    - `notebooks/`: runnable examples
+    - `peft/` or `v1/peft/`: finetune/peft scripts and examples
+    - `v1/`: legacy code paths and/or older training utilities
+    - `pyproject.toml`: python packaging for timesfm
+  - `commodity-forecasting-system/`: commodity forecasting system (formerly separate repo)
+    - `src/`: source code for commodity forecasting
+    - `tests/`: test suite
+    - `config/`: configuration files
+    - `requirements.txt`: python dependencies
+  - `10-6/`: (existing project directory)
+  - `CHECKLIST.md`: project goals and tasks
+  - `CLAUDE.md`: this file - operating instructions for Claude
 
 when something conflicts with this expectation, update this file with the verified structure.
 
@@ -31,9 +52,10 @@ when something conflicts with this expectation, update this file with the verifi
 
 target python: 3.10 or 3.11 (avoid 3.12+ unless the repo explicitly supports it).
 
-inside `/timesfm/`:
+### for timesfm work (inside `GOOGLE/timesfm/`):
 
 1) create and activate a venv
+- `cd GOOGLE/timesfm`
 - `python -m venv .venv`
 - `source .venv/bin/activate`
 - `python -m pip install -U pip setuptools wheel`
@@ -46,8 +68,18 @@ inside `/timesfm/`:
 - `python -c "import timesfm; print(timesfm.__file__)"`
 - run any repo-defined checks (see `pyproject.toml` / `README.md`).
 
+### for commodity-forecasting-system work (inside `commodity-forecasting-system/`):
+
+1) create and activate a venv
+- `cd commodity-forecasting-system`
+- `python -m venv .venv`
+- `source .venv/bin/activate`
+
+2) install dependencies
+- `pip install -r requirements.txt`
+
 notes:
-- the official pip path for inference often looks like `pip install timesfm[torch]` when you are not developing from source.
+- the official pip path for timesfm inference often looks like `pip install timesfm[torch]` when you are not developing from source.
 - memory use can be high; do not assume small-model behavior when loading checkpoints.
 
 ## 4) what the notebooks teach us (key api surfaces)
@@ -118,11 +150,24 @@ one entry per decision:
 5) run checks.
 6) update BUGS/PROGRESS/DECISIONS if relevant.
 7) provide the user exact commands to run and where outputs land.
+8) **IMPORTANT**: tell the user what files changed, but DO NOT create git commits unless explicitly instructed (see GIT COMMIT POLICY above).
 
 ## 8) shell hygiene (avoid common cli failures)
 
 - quote complex args: `--filter="a AND b"`.
 - prefer single-line commands over multiline pasted blocks.
 - when passing regex/special chars, wrap in single quotes where possible.
+
+## 9) repository history and structure
+
+**as of 2026-01-16: reBOT is now a unified single repository.**
+
+- previously: `GOOGLE/timesfm` was a git submodule pointing to a fork
+- previously: `commodity-forecasting-system` was a broken gitlink
+- now: all files in `GOOGLE/timesfm/` and `commodity-forecasting-system/` are regular tracked files
+- workflow: simple git add/commit/push for any file anywhere in `/reBOT/`
+- no submodules, no gitlinks, no complexity
+- git history for the conversion is in commit `27cfd75` ("Simplify: Convert to unified repository")
+- backups of original .git directories are in `~/backup_git/` if rollback ever needed
 
 EOF

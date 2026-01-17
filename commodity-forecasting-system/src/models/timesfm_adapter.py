@@ -129,19 +129,28 @@ class TimesFMAdapter:
                 "Install with: pip install timesfm"
             )
 
-        # Initialize TimesFM with torch backend
-        self.model = timesfm.TimesFm(
+        # Create hyperparameters with new API
+        hparams = timesfm.TimesFmHparams(
             context_len=self.max_context,
             horizon_len=self.max_horizon,
             input_patch_len=32,  # Standard from paper
             output_patch_len=128,  # Standard from paper
             num_layers=20,
+            num_heads=16,
             model_dims=1280,
             backend="cpu" if self.device == "cpu" else "gpu",
         )
 
-        # Load pretrained checkpoint
-        self.model.load_from_checkpoint(repo_id=self.checkpoint)
+        # Create checkpoint configuration
+        checkpoint = timesfm.TimesFmCheckpoint(
+            huggingface_repo_id=self.checkpoint
+        )
+
+        # Initialize TimesFM with new API
+        self.model = timesfm.TimesFm(
+            hparams=hparams,
+            checkpoint=checkpoint
+        )
 
         logger.info(f"Loaded TimesFM torch model from {self.checkpoint}")
 
@@ -246,35 +255,31 @@ class TimesFMAdapter:
             context = pd.Series(context).fillna(method='ffill').fillna(method='bfill').values
 
         try:
-            # TimesFM expects inputs shaped (num_series, context_len)
-            # For single series forecasting, add batch dimension
-            context_batched = context.reshape(1, -1)
+            # TimesFM expects inputs as list of arrays
+            # For single series forecasting, wrap in list
+            inputs = [context]
+
+            # Map frequency string to integer (0 for unknown/daily)
+            freq_int = [0]  # Default to 0 (daily frequency)
 
             # Generate forecast using TimesFM
-            # TimesFM.forecast returns tuple: (point_forecast, [optional quantiles])
-            if quantiles is not None and self.use_continuous_quantile_head:
-                # Probabilistic forecasting with quantiles
-                forecast_output = self.model.forecast(
-                    inputs=context_batched,
-                    freq=freq or "D",  # Default to daily
-                    quantiles=quantiles
-                )
+            # TimesFM.forecast returns tuple: (point_forecast, quantile_forecast)
+            point_forecast, quantile_forecast = self.model.forecast(
+                inputs=inputs,
+                freq=freq_int
+            )
 
-                # Parse output
-                point_forecast = forecast_output[0].flatten()[:horizon]
-                quantile_forecasts = {
-                    q: forecast_output[i+1].flatten()[:horizon]
-                    for i, q in enumerate(quantiles)
-                }
-            else:
-                # Point forecasting only
-                forecast_output = self.model.forecast(
-                    inputs=context_batched,
-                    freq=freq or "D"
-                )
+            # Extract forecast for the single series (index 0)
+            point_forecast = point_forecast[0, :horizon]
 
-                point_forecast = forecast_output[0].flatten()[:horizon]
-                quantile_forecasts = None
+            # Parse quantile forecasts if available
+            quantile_forecasts = None
+            if quantile_forecast is not None and quantiles is not None:
+                quantile_forecasts = {}
+                # quantile_forecast shape: (num_series, horizon, num_quantiles)
+                for i, q in enumerate(quantiles):
+                    if i < quantile_forecast.shape[2]:
+                        quantile_forecasts[q] = quantile_forecast[0, :horizon, i]
 
             return TimesFMForecast(
                 point_forecast=point_forecast,

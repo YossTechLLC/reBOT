@@ -9,11 +9,11 @@ description = "Master configuration for commodity forecasting system"
 
 [commodity]
 # Primary commodity to forecast
-# Options: "GC=F" (Gold), "CL=F" (Crude Oil), "SI=F" (Silver), "NG=F" (Natural Gas)
+# Options: "GC=F" (Gold), "CL=F" (Crude Oil), "SI=F" (Silver), "NG=F" (Natural Gas), "^GSPC" (S&P 500)
 # Type: string
 # Impact: Determines which commodity data to fetch and analyze
-ticker = "GC=F"
-name = "Gold Futures"
+ticker = "^GSPC"
+name = "S&P 500 Index"
 
 [data]
 # Historical data period
@@ -309,7 +309,7 @@ quandl = ""  # Get from https://www.quandl.com/sign-up
 # Enable TimesFM as complementary forecaster
 # Type: boolean
 # Impact: TimesFM provides long-context forecasting capability
-enabled = false
+enabled = true
 
 # Model variant
 # Type: string
@@ -320,9 +320,9 @@ backend = "torch"
 
 # Hugging Face checkpoint
 # Type: string
-# Default: "google/timesfm-2.5-200m-pytorch"
+# Default: "google/timesfm-1.0-200m-pytorch"
 # Impact: Different checkpoints have different characteristics
-checkpoint = "google/timesfm-2.5-200m-pytorch"
+checkpoint = "google/timesfm-1.0-200m-pytorch"
 
 # Forecast configuration
 # Type: integer
