@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rev-parse:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "WebSearch",
+      "Bash(git init:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(test:*)",
+      "Bash(git submodule:*)",
+      "Bash(ls:*)",
+      "Bash(git diff:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git remote add:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git fetch:*)",
+      "Bash(git status:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git describe:*)",
+      "Bash(git format-patch:*)",
+      "Bash(~/timesfm_local_commits.patch)",
+      "Bash(~/timesfm_commit_log.txt)",
+      "Bash(gh repo fork:*)",
+      "Bash(gh auth:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git cat-file:*)",
+      "Bash(git rm:*)",
+      "Bash(echo \"   ✗ NO\" __NEW_LINE_1f5bf830e2882f96__ cat <<'EOF'\n\n=== END VERIFICATION ===\nEOF)"
+    ]
+  }
+}
