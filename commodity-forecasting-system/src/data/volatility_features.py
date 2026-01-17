@@ -233,11 +233,17 @@ class VolatilityFeatureEngineer:
         # Prepare VIX data
         vix_close = vix_df['close'].rename('vix_level')
 
+        # TIMEZONE FIX: Normalize both to date-only (ignore time component)
+        # This handles Alpaca's "2025-11-19 05:00:00+00:00" vs yfinance's "2025-11-19 00:00:00"
+        df_original_index = df.index.copy()
+        df.index = pd.to_datetime(df.index.date)  # Strip time, keep date only
+        vix_close.index = pd.to_datetime(vix_close.index.date)  # Strip time
+
         # Merge VIX into stock DataFrame (align by date)
         df = df.join(vix_close, how='left')
 
         # Forward-fill VIX for any missing dates
-        df['vix_level'] = df['vix_level'].fillna(method='ffill')
+        df['vix_level'] = df['vix_level'].ffill()
 
         # VIX changes
         df['vix_change_1d'] = df['vix_level'].diff()

@@ -1,0 +1,15 @@
+{
+  "trained_date": "2026-01-17 10:00:45",
+  "training_samples": 231,
+  "regime_volatilities": {
+    "low_vol": 0.0069193630207327675,
+    "normal_vol": 0.013868420356139282,
+    "high_vol": 0.03715381737836048
+  },
+  "regime_distribution": {
+    "low_vol": 50.649350649350644,
+    "normal_vol": 42.857142857142854,
+    "high_vol": 6.493506493506493
+  },
+  "converged": true
+}

@@ -1,0 +1,20 @@
+{
+  "validation_date": "2026-01-17 10:07:27",
+  "train_days": 96,
+  "test_days": 30,
+  "volatility_threshold": 0.012,
+  "accuracy": 90.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "f1_score": 0.0,
+  "tp": 0,
+  "tn": 27,
+  "fp": 1,
+  "fn": 2,
+  "total_trades": 1,
+  "actual_high_vol_days": 2,
+  "win_rate": 0.0,
+  "miss_rate": 100.0,
+  "expected_value_per_trade": -80.0,
+  "validation_status": "PARTIAL"
+}

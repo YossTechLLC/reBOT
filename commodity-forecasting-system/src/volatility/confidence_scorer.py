@@ -102,6 +102,7 @@ class VolatilityConfidenceScorer:
         # 2. TIMESFM SCORE (40%)
         if timesfm_forecast is not None:
             timesfm_score = self._calculate_timesfm_score(timesfm_forecast)
+            effective_weights = self.weights
         else:
             # If TimesFM not available, redistribute weight to regime
             logger.warning("TimesFM forecast not provided, using regime score only")
@@ -112,8 +113,6 @@ class VolatilityConfidenceScorer:
                 'timesfm': 0.0,
                 'features': self.weights['features']
             }
-        else:
-            effective_weights = self.weights
 
         # 3. FEATURE SCORE (20%)
         if feature_signals:

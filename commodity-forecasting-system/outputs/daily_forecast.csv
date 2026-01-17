@@ -1,0 +1,2 @@
+date,confidence_score,regime_label,regime_volatility,feature_signals,recommendation,should_trade
+2026-01-16,10.236602777241426,low_vol,0.0069193630207327675,"{'overnight_gap_abs': np.float64(0.0020513116838090243), 'vix_change_1d': np.float64(0.01999950408935547), 'vix_level': np.float64(15.859999656677246), 'range_expansion': np.float64(0.8554061545896315), 'volume_surge': np.int64(0), 'volume_ratio': np.float64(1.0892713011123494), 'high_range_days_5': np.float64(0.0)}",SKIP - Low volatility expected,False
