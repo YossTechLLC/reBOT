@@ -412,40 +412,58 @@ class VolatilityCharts:
         call_strike: float,
         put_strike: float,
         credit_received: float,
-        strategy_name: str = 'Short Strangle'
+        strategy_name: str = 'Straddle/Strangle',
+        position_type: str = 'long'
     ) -> go.Figure:
         """
         Create P&L payoff diagram for options strategy.
 
         Shows profit/loss at different underlying prices at expiration.
-        For a short strangle, max profit is at the current price, with
-        losses increasing as price moves beyond the strikes.
+
+        For LONG straddle/strangle:
+        - Pay debit (premium) upfront = max loss
+        - Profit when price moves beyond breakeven
+        - One leg goes ITM, profit = intrinsic - debit
+
+        For SHORT straddle/strangle:
+        - Receive credit (premium) upfront = max profit
+        - Profit when price stays between strikes
+        - Loss when price moves beyond strikes
 
         Args:
             current_price: Current SPY price
             call_strike: Call strike price
             put_strike: Put strike price
-            credit_received: Credit collected (premium in dollars)
+            credit_received: For SHORT = credit received; For LONG = debit paid
             strategy_name: Name of strategy for title
+            position_type: 'long' (buy options) or 'short' (sell options)
 
         Returns:
             Plotly Figure with payoff curve
         """
         # Generate price range (20% below put to 20% above call)
-        price_min = put_strike * 0.92
-        price_max = call_strike * 1.08
+        price_min = put_strike * 0.85
+        price_max = call_strike * 1.15
         price_range = np.linspace(price_min, price_max, 200)
+
+        premium = credit_received  # For long = debit paid; for short = credit received
 
         # Calculate P&L at each price point
         pnl = []
         for price in price_range:
-            # Short strangle P&L at expiration:
-            # If price < put_strike: loss = (put_strike - price) * 100 - credit
-            # If price > call_strike: loss = (price - call_strike) * 100 - credit
-            # If between strikes: profit = credit
             call_intrinsic = max(price - call_strike, 0) * 100
             put_intrinsic = max(put_strike - price, 0) * 100
-            position_pnl = credit_received - call_intrinsic - put_intrinsic
+            total_intrinsic = call_intrinsic + put_intrinsic
+
+            if position_type == 'long':
+                # LONG: We paid premium, profit = intrinsic value - premium paid
+                # Max loss = premium (when price between strikes, both expire worthless)
+                position_pnl = total_intrinsic - premium
+            else:
+                # SHORT: We received premium, loss = intrinsic value - premium received
+                # Max profit = premium (when price between strikes)
+                position_pnl = premium - total_intrinsic
+
             pnl.append(position_pnl)
 
         pnl = np.array(pnl)
@@ -513,19 +531,32 @@ class VolatilityCharts:
             annotation_position='bottom right'
         )
 
-        # Add max profit annotation
-        fig.add_annotation(
-            x=current_price,
-            y=credit_received,
-            text=f'Max Profit: ${credit_received:.0f}',
-            showarrow=True,
-            arrowhead=2,
-            arrowcolor='green'
-        )
+        # Add max profit/loss annotation based on position type
+        if position_type == 'long':
+            # LONG: Max loss at center (between strikes), profits on the wings
+            fig.add_annotation(
+                x=current_price,
+                y=-premium,
+                text=f'Max Loss: ${premium:.0f}',
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor='red'
+            )
+        else:
+            # SHORT: Max profit at center
+            fig.add_annotation(
+                x=current_price,
+                y=premium,
+                text=f'Max Profit: ${premium:.0f}',
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor='green'
+            )
 
         # Format layout
+        position_label = "LONG" if position_type == 'long' else "SHORT"
         fig.update_layout(
-            title=f'{strategy_name} P&L at Expiration',
+            title=f'{strategy_name} ({position_label}) P&L at Expiration',
             xaxis_title='SPY Price at Expiration ($)',
             yaxis_title='Profit/Loss ($)',
             template='plotly_white',

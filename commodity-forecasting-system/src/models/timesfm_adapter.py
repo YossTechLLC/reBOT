@@ -75,9 +75,11 @@ class TimesFMAdapter:
             return
 
         # Model configuration
+        # Note: Using 1.0 version as default because it provides torch_model.ckpt format
+        # The 2.5 version uses safetensors which isn't fully supported by timesfm library yet
         self.checkpoint = checkpoint or timesfm_config.get(
             'checkpoint',
-            'google/timesfm-2.5-200m-pytorch'
+            'google/timesfm-1.0-200m-pytorch'
         )
         self.max_context = timesfm_config.get('max_context', 1024)
         self.max_horizon = timesfm_config.get('max_horizon', 256)

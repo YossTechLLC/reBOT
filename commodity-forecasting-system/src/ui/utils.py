@@ -48,6 +48,7 @@ def initialize_session_state():
         'data_end_date': None,            # Actual end date of loaded data (for display)
         # HMM feature selection - configurable features for regime detection
         'hmm_features': None,             # Selected features (None = use defaults)
+        'hmm_feature_bounds': {},         # Custom scaling bounds {feature: {min, max}}
     }
 
     for key, value in defaults.items():
@@ -174,10 +175,13 @@ def display_status_header(
     with col2:
         if timesfm_status['loaded'] and timesfm_status['available']:
             st.success("✅ TimesFM Ready")
+            st.caption("Foundation model active")
         elif timesfm_status['loaded']:
-            st.warning("⚠️ TimesFM Loaded (Checkpoint Missing)")
+            st.warning("⚠️ TimesFM Error")
+            st.caption("Check logs for details")
         else:
-            st.info("ℹ️ TimesFM Not Loaded")
+            st.error("❌ TimesFM Not Loaded")
+            st.caption("Required for full functionality")
 
     with col3:
         if data_date:
@@ -227,7 +231,7 @@ def display_dataframe_with_download(
         height: Height of the dataframe display
     """
     st.subheader(title)
-    st.dataframe(df, height=height, use_container_width=True)
+    st.dataframe(df, height=height, width='stretch')
     export_to_csv(df, filename)
 
 
@@ -384,28 +388,129 @@ HMM_DEFAULT_FEATURES = [
     'range_std_5'
 ]
 
-# All available features that can be used for HMM (must exist in features_df)
-HMM_AVAILABLE_FEATURES = [
+# HMM Feature metadata: name -> (description, min, max, effect)
+# - min/max: typical scaling bounds (used for normalization)
+# - effect: what happens when values are HIGH vs LOW
+HMM_FEATURE_INFO = {
     # Core volatility features (default set)
-    'overnight_gap_abs',    # Overnight gap magnitude - strong morning volatility predictor
-    'range_ma_5',           # 5-day average intraday range - recent volatility trend
-    'vix_level',            # VIX level - external fear gauge
-    'volume_ratio',         # Volume vs 20-day average - confirms real moves
-    'range_std_5',          # Volatility of volatility - clustering detection
+    'overnight_gap_abs': {
+        'description': 'Overnight gap magnitude (absolute %)',
+        'min': 0.0,
+        'max': 3.0,
+        'unit': '%',
+        'effect': 'HIGH = strong morning volatility, gaps >1% signal regime changes'
+    },
+    'range_ma_5': {
+        'description': '5-day average intraday range',
+        'min': 0.3,
+        'max': 3.0,
+        'unit': '%',
+        'effect': 'HIGH = recent volatility cluster, expect continuation'
+    },
+    'vix_level': {
+        'description': 'VIX index level (fear gauge)',
+        'min': 10.0,
+        'max': 50.0,
+        'unit': 'pts',
+        'effect': 'HIGH = market fear/uncertainty, wider ranges expected'
+    },
+    'volume_ratio': {
+        'description': 'Volume vs 20-day average',
+        'min': 0.5,
+        'max': 3.0,
+        'unit': 'x',
+        'effect': 'HIGH = confirms real moves, LOW = noise/drift'
+    },
+    'range_std_5': {
+        'description': 'Volatility of volatility (5-day std)',
+        'min': 0.0,
+        'max': 1.5,
+        'unit': '%',
+        'effect': 'HIGH = unstable regimes, may flip quickly'
+    },
     # Additional gap features
-    'gap_ma_5',             # 5-day average gap - gap clustering
-    'gap_zscore',           # Gap outlier detection
+    'gap_ma_5': {
+        'description': '5-day average gap magnitude',
+        'min': 0.0,
+        'max': 2.0,
+        'unit': '%',
+        'effect': 'HIGH = gap clustering, morning volatility likely'
+    },
+    'gap_zscore': {
+        'description': 'Gap outlier score (z-score)',
+        'min': -3.0,
+        'max': 3.0,
+        'unit': 'z',
+        'effect': 'HIGH = unusual gap, potential regime shift'
+    },
     # Additional range features
-    'range_expansion',      # Current range vs average - regime shift indicator
-    'high_range_days_5',    # Count of volatile days in last 5 - clustering
-    'range_ma_10',          # 10-day average range - medium-term trend
+    'range_expansion': {
+        'description': 'Current range vs average (ratio)',
+        'min': 0.5,
+        'max': 2.5,
+        'unit': 'x',
+        'effect': 'HIGH = expanding volatility, trend likely'
+    },
+    'high_range_days_5': {
+        'description': 'Count of high-vol days in last 5',
+        'min': 0,
+        'max': 5,
+        'unit': 'days',
+        'effect': 'HIGH = sustained volatility cluster'
+    },
+    'range_ma_10': {
+        'description': '10-day average intraday range',
+        'min': 0.3,
+        'max': 3.0,
+        'unit': '%',
+        'effect': 'HIGH = medium-term volatility trend'
+    },
     # VIX features
-    'vix_change_1d',        # VIX 1-day change - fear spike detection
-    'vix_ma_5',             # 5-day VIX average
+    'vix_change_1d': {
+        'description': 'VIX 1-day change',
+        'min': -5.0,
+        'max': 10.0,
+        'unit': 'pts',
+        'effect': 'HIGH = fear spike, often precedes volatility'
+    },
+    'vix_ma_5': {
+        'description': '5-day VIX moving average',
+        'min': 10.0,
+        'max': 45.0,
+        'unit': 'pts',
+        'effect': 'HIGH = sustained fear environment'
+    },
     # Volume features
-    'volume_surge',         # Binary: volume > 1.5x average
-    'quality_volatility',   # High volume + high range combo
+    'volume_surge': {
+        'description': 'Binary: volume > 1.5x average',
+        'min': 0,
+        'max': 1,
+        'unit': 'bool',
+        'effect': 'HIGH (1) = significant volume, moves are real'
+    },
+    'quality_volatility': {
+        'description': 'High volume + high range combo',
+        'min': 0,
+        'max': 1,
+        'unit': 'bool',
+        'effect': 'HIGH (1) = quality volatility day, best for trading'
+    },
     # Time features
-    'is_monday',            # Monday effect (weekend gap resolution)
-    'is_friday',            # Friday effect (position squaring)
-]
+    'is_monday': {
+        'description': 'Monday indicator (weekend gap resolution)',
+        'min': 0,
+        'max': 1,
+        'unit': 'bool',
+        'effect': 'HIGH (1) = Monday, often higher morning vol'
+    },
+    'is_friday': {
+        'description': 'Friday indicator (position squaring)',
+        'min': 0,
+        'max': 1,
+        'unit': 'bool',
+        'effect': 'HIGH (1) = Friday, afternoon volatility common'
+    },
+}
+
+# List of all available features (keys from FEATURE_INFO)
+HMM_AVAILABLE_FEATURES = list(HMM_FEATURE_INFO.keys())

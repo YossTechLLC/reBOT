@@ -1,6 +1,6 @@
 # Architecture Changes Checklist
 **Date:** 2026-01-24
-**Status:** ✅ COMPLETE
+**Status:** ✅ COMPLETE (Phase 1-3) | 🔄 NEW: Phase 4 Added
 
 ---
 
@@ -11,6 +11,7 @@
 | 1 | Support 2-5 Regimes Correctly | Medium | hmm_volatility.py, confidence_scorer.py, utils.py |
 | 2 | Fix Date Picker Off-by-One | Simple | app.py (3 lines) |
 | 3 | HMM Feature Selection UI | Medium | app.py, model_controller.py, hmm_volatility.py |
+| 4 | Feature Scaling Bounds UI | Medium | hmm_volatility.py, app.py, utils.py |
 
 ---
 

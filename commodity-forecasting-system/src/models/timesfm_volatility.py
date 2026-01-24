@@ -34,7 +34,7 @@ class TimesFMVolatilityForecaster:
 
     def __init__(
         self,
-        checkpoint: str = 'google/timesfm-2.5-200m-pytorch',
+        checkpoint: str = 'google/timesfm-1.0-200m-pytorch',
         context_length: int = 60,
         device: str = 'cpu'
     ):
@@ -42,12 +42,18 @@ class TimesFMVolatilityForecaster:
         Initialize TimesFM volatility forecaster.
 
         Args:
-            checkpoint: HuggingFace checkpoint (default: TimesFM 2.5 200M PyTorch)
+            checkpoint: HuggingFace checkpoint (default: TimesFM 1.0 200M PyTorch)
+                        Note: 1.0 version provides torch_model.ckpt format required by timesfm library.
+                        The 2.5 version uses safetensors which isn't fully supported yet.
             context_length: Days of historical volatility to use as context (default: 60)
             device: Device for inference ('cpu', 'cuda', or 'auto')
         """
         self.context_length = context_length
         self.device = device
+
+        # Use default checkpoint if None provided
+        if checkpoint is None:
+            checkpoint = 'google/timesfm-1.0-200m-pytorch'
 
         # Create configuration for TimesFMAdapter
         config = {

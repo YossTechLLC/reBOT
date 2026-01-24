@@ -44,7 +44,9 @@ logger = logging.getLogger(__name__)
 def validate_mvp(
     train_days: int = 180,
     test_days: int = 30,
-    volatility_threshold: float = 0.012  # 1.2% target
+    volatility_threshold: float = 0.012,  # 1.2% target
+    n_regimes: int = 5,  # Match UI default (supports extreme_vol)
+    use_timesfm: bool = True  # Use TimesFM for predictions
 ) -> dict:
     """
     Run walk-forward validation on volatility prediction system.
@@ -53,6 +55,8 @@ def validate_mvp(
         train_days: Days of data for training
         test_days: Days of data for testing
         volatility_threshold: Volatility threshold for profitable trades (default: 1.2%)
+        n_regimes: Number of HMM regimes (default: 5 to support extreme_vol)
+        use_timesfm: Whether to use TimesFM forecasting (default: True)
 
     Returns:
         Dictionary with validation metrics
@@ -102,8 +106,8 @@ def validate_mvp(
     logger.info(f"   Test: {len(test_df)} days ({test_df.index[0]} to {test_df.index[-1]})")
 
     # Step 4: Train HMM
-    logger.info("\n🎯 STEP 4: Training HMM on training data...")
-    hmm_model = VolatilityHMM(n_regimes=3)
+    logger.info(f"\n🎯 STEP 4: Training HMM on training data ({n_regimes} regimes)...")
+    hmm_model = VolatilityHMM(n_regimes=n_regimes)
     metrics = hmm_model.train(train_df, n_iter=100)
 
     logger.info(f"   Converged: {metrics['converged']}")
@@ -111,6 +115,22 @@ def validate_mvp(
     for label in hmm_model.regime_labels:
         vol = hmm_model.regime_volatilities[label]
         logger.info(f"      {label}: {vol:.3f} ({vol*100:.2f}%)")
+
+    # Step 4b: Load TimesFM (optional)
+    timesfm_forecaster = None
+    if use_timesfm:
+        logger.info("\n🔮 STEP 4b: Loading TimesFM forecaster...")
+        try:
+            from models.timesfm_volatility import TimesFMVolatilityForecaster
+            timesfm_forecaster = TimesFMVolatilityForecaster()
+            if timesfm_forecaster.is_available():
+                logger.info("   ✅ TimesFM loaded successfully")
+            else:
+                logger.warning("   ⚠️ TimesFM not available, proceeding without it")
+                timesfm_forecaster = None
+        except Exception as e:
+            logger.warning(f"   ⚠️ Failed to load TimesFM: {e}")
+            timesfm_forecaster = None
 
     # Step 5: Generate predictions on test data
     logger.info("\n🔮 STEP 5: Generating predictions on test data...")
@@ -143,11 +163,19 @@ def validate_mvp(
             'high_range_days_5': row['high_range_days_5']
         }
 
+        # Get TimesFM forecast if available
+        timesfm_forecast = None
+        if timesfm_forecaster is not None:
+            try:
+                timesfm_forecast = timesfm_forecaster.predict_next_day(context_df)
+            except Exception:
+                pass  # Silently continue without TimesFM
+
         # Calculate confidence score
         score = scorer.calculate_score(
             regime_volatility=regime_volatility,
             regime_label=regime_label,
-            timesfm_forecast=None,  # Not using TimesFM for validation
+            timesfm_forecast=timesfm_forecast,
             feature_signals=feature_signals
         )
 
@@ -253,6 +281,7 @@ def validate_mvp(
 
     results_df = test_df.copy()
     results_df['predicted_high_vol'] = predictions
+    results_df['trade_signal'] = predictions  # UI expects this column name
     results_df['actual_high_vol'] = actuals
     results_df['confidence_score'] = confidence_scores
     results_df['regime_label'] = regime_labels

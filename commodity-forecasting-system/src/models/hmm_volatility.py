@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 from typing import Optional, Tuple, Dict
 from hmmlearn import hmm
-from sklearn.preprocessing import StandardScaler
+# Note: Using custom MinMax scaling with configurable bounds (no sklearn scaler needed)
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,10 @@ class VolatilityHMM:
     Hidden Markov Model for volatility regime detection.
 
     Architecture:
-    - 3 states (low_vol, normal_vol, high_vol)
+    - 2-5 states (very_low_vol to extreme_vol)
     - Gaussian emissions (continuous observations)
-    - Features: overnight_gap_abs, range_ma_5, vix_level, volume_ratio
+    - Features: configurable, default = overnight_gap_abs, range_ma_5, vix_level, volume_ratio, range_std_5
+    - Scaling: MinMaxScaler with configurable bounds per feature
     """
 
     # Default features used when none specified
@@ -45,24 +46,65 @@ class VolatilityHMM:
         'range_std_5'
     ]
 
-    def __init__(self, n_regimes: int = 3, features: list = None, random_state: int = 42):
+    # Default scaling bounds for each feature (used if no custom bounds provided)
+    DEFAULT_BOUNDS = {
+        'overnight_gap_abs': {'min': 0.0, 'max': 3.0},
+        'range_ma_5': {'min': 0.3, 'max': 3.0},
+        'vix_level': {'min': 10.0, 'max': 50.0},
+        'volume_ratio': {'min': 0.5, 'max': 3.0},
+        'range_std_5': {'min': 0.0, 'max': 1.5},
+        'gap_ma_5': {'min': 0.0, 'max': 2.0},
+        'gap_zscore': {'min': -3.0, 'max': 3.0},
+        'range_expansion': {'min': 0.5, 'max': 2.5},
+        'high_range_days_5': {'min': 0, 'max': 5},
+        'range_ma_10': {'min': 0.3, 'max': 3.0},
+        'vix_change_1d': {'min': -5.0, 'max': 10.0},
+        'vix_ma_5': {'min': 10.0, 'max': 45.0},
+        'volume_surge': {'min': 0, 'max': 1},
+        'quality_volatility': {'min': 0, 'max': 1},
+        'is_monday': {'min': 0, 'max': 1},
+        'is_friday': {'min': 0, 'max': 1},
+    }
+
+    def __init__(
+        self,
+        n_regimes: int = 3,
+        features: list = None,
+        feature_bounds: Dict[str, Dict[str, float]] = None,
+        random_state: int = 42
+    ):
         """
         Initialize HMM.
 
         Args:
             n_regimes: Number of volatility regimes (default: 3)
             features: List of feature column names to use (default: 5 core features)
+            feature_bounds: Dict of {feature_name: {'min': x, 'max': y}} for custom scaling.
+                          Values outside bounds are clipped. Default bounds used if not specified.
             random_state: Random seed for reproducibility
         """
         self.n_regimes = n_regimes
         self.features = features if features is not None else self.DEFAULT_FEATURES.copy()
         self.random_state = random_state
 
+        # Build feature bounds: merge user bounds with defaults
+        self.feature_bounds = {}
+        for feat in self.features:
+            if feature_bounds and feat in feature_bounds:
+                self.feature_bounds[feat] = feature_bounds[feat]
+            elif feat in self.DEFAULT_BOUNDS:
+                self.feature_bounds[feat] = self.DEFAULT_BOUNDS[feat]
+            else:
+                # Fallback for unknown features: use data-driven bounds during training
+                self.feature_bounds[feat] = None
+
         # HMM model (will be trained)
         self.model = None
 
-        # Feature scaler
-        self.scaler = StandardScaler()
+        # Feature scaler (MinMaxScaler, configured during training)
+        self.scaler = None
+        self._scaler_mins = None
+        self._scaler_maxs = None
 
         # Regime metadata (learned during training)
         self.regime_labels = []  # ['low_vol', 'normal_vol', 'high_vol']
@@ -135,6 +177,45 @@ class VolatilityHMM:
         logger.info(f"Prepared features: {X.shape[0]} samples, {X.shape[1]} features")
         return X, y
 
+    def _scale_features(self, X: np.ndarray, fit: bool = False) -> np.ndarray:
+        """
+        Scale features using configured bounds (MinMax scaling with clipping).
+
+        Args:
+            X: Feature matrix (n_samples, n_features)
+            fit: If True, also fit the scaler (for training). If False, use stored bounds.
+
+        Returns:
+            Scaled feature matrix (values in 0-1 range)
+        """
+        if fit:
+            # Build min/max arrays from feature_bounds
+            mins = []
+            maxs = []
+            for i, feat in enumerate(self.features):
+                bounds = self.feature_bounds.get(feat)
+                if bounds is not None:
+                    mins.append(bounds['min'])
+                    maxs.append(bounds['max'])
+                else:
+                    # Use data-driven bounds for unknown features
+                    mins.append(X[:, i].min())
+                    maxs.append(X[:, i].max())
+
+            self._scaler_mins = np.array(mins)
+            self._scaler_maxs = np.array(maxs)
+
+        # Clip to bounds
+        X_clipped = np.clip(X, self._scaler_mins, self._scaler_maxs)
+
+        # Scale to 0-1
+        ranges = self._scaler_maxs - self._scaler_mins
+        # Avoid division by zero
+        ranges = np.where(ranges == 0, 1, ranges)
+        X_scaled = (X_clipped - self._scaler_mins) / ranges
+
+        return X_scaled
+
     def train(
         self,
         df: pd.DataFrame,
@@ -157,8 +238,8 @@ class VolatilityHMM:
         # Prepare features
         X, y = self.prepare_features(df)
 
-        # Scale features
-        X_scaled = self.scaler.fit_transform(X)
+        # Scale features using configured bounds
+        X_scaled = self._scale_features(X, fit=True)
 
         # Initialize HMM
         self.model = hmm.GaussianHMM(
@@ -225,20 +306,21 @@ class VolatilityHMM:
         Returns:
             Dictionary with metrics
         """
+        # Calculate log-likelihood using training data features
+        X, _ = self.prepare_features(pd.DataFrame({
+            col: volatilities.index.map(lambda x: 0) if col == 'overnight_gap_abs'
+                 else [15] * len(volatilities) if col == 'vix_level'
+                 else [1] * len(volatilities) if col == 'volume_ratio'
+                 else volatilities.values
+            for col in self.features
+        } | {'intraday_range_pct': volatilities.values}))
+        X_scaled = self._scale_features(X, fit=False)
+
         metrics = {
             'n_samples': len(regimes),
             'n_regimes': self.n_regimes,
             'converged': self.model.monitor_.converged,
-            'log_likelihood': self.model.score(self.scaler.transform(self.prepare_features(
-                pd.DataFrame({
-                    'overnight_gap_abs': volatilities.index.map(lambda x: 0),
-                    'range_ma_5': volatilities.values,
-                    'vix_level': [15] * len(volatilities),
-                    'volume_ratio': [1] * len(volatilities),
-                    'range_std_5': volatilities.values,
-                    'intraday_range_pct': volatilities.values
-                })
-            )[0]))
+            'log_likelihood': self.model.score(X_scaled)
         }
 
         # Regime distribution
@@ -266,8 +348,8 @@ class VolatilityHMM:
         # Prepare features
         X, y = self.prepare_features(df)
 
-        # Scale features
-        X_scaled = self.scaler.transform(X)
+        # Scale features using configured bounds
+        X_scaled = self._scale_features(X, fit=False)
 
         # Predict regimes
         regime_indices = self.model.predict(X_scaled)
@@ -304,7 +386,7 @@ class VolatilityHMM:
 
         # Calculate regime probabilities
         X, _ = self.prepare_features(df)
-        X_scaled = self.scaler.transform(X)
+        X_scaled = self._scale_features(X, fit=False)
         probs = self.model.predict_proba(X_scaled)[-1]
 
         # Map probabilities to labels
@@ -330,12 +412,14 @@ class VolatilityHMM:
 
         model_data = {
             'model': self.model,
-            'scaler': self.scaler,
             'regime_labels': self.regime_labels,
             'regime_volatilities': self.regime_volatilities,
             'regime_mappings': self.regime_mappings,
             'n_regimes': self.n_regimes,
-            'features': self.features
+            'features': self.features,
+            'feature_bounds': self.feature_bounds,
+            '_scaler_mins': self._scaler_mins,
+            '_scaler_maxs': self._scaler_maxs
         }
 
         with open(filepath, 'wb') as f:
@@ -354,13 +438,28 @@ class VolatilityHMM:
             model_data = pickle.load(f)
 
         self.model = model_data['model']
-        self.scaler = model_data['scaler']
         self.regime_labels = model_data['regime_labels']
         self.regime_volatilities = model_data['regime_volatilities']
         self.regime_mappings = model_data['regime_mappings']
         self.n_regimes = model_data['n_regimes']
         # Backward compatible: older models may not have features saved
         self.features = model_data.get('features', self.DEFAULT_FEATURES.copy())
+        # Load feature bounds and scaling params (backward compatible)
+        self.feature_bounds = model_data.get('feature_bounds', {})
+        self._scaler_mins = model_data.get('_scaler_mins')
+        self._scaler_maxs = model_data.get('_scaler_maxs')
+
+        # Backward compatibility: if old model with StandardScaler, set up default bounds
+        if self._scaler_mins is None and 'scaler' in model_data:
+            # Old model used StandardScaler - use default bounds
+            for feat in self.features:
+                if feat not in self.feature_bounds:
+                    self.feature_bounds[feat] = self.DEFAULT_BOUNDS.get(feat)
+            # Rebuild scaler mins/maxs from bounds
+            mins = [self.feature_bounds.get(f, {}).get('min', 0) for f in self.features]
+            maxs = [self.feature_bounds.get(f, {}).get('max', 1) for f in self.features]
+            self._scaler_mins = np.array(mins)
+            self._scaler_maxs = np.array(maxs)
 
         logger.info(f"Model loaded from {filepath}")
         logger.info(f"Regime volatilities: {self.regime_volatilities}")

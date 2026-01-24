@@ -10,7 +10,11 @@
       "Bash(ln:*)",
       "Bash(python -m py_compile:*)",
       "WebSearch",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(python3:*)",
+      "Bash(pip show:*)",
+      "Bash(pip index:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

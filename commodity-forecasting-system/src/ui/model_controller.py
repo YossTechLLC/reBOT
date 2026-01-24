@@ -63,6 +63,7 @@ class ModelController:
         df: pd.DataFrame,
         n_regimes: int = 3,
         features: List[str] = None,
+        feature_bounds: Dict[str, Dict[str, float]] = None,
         n_iter: int = 100,
         prediction_date: Optional[pd.Timestamp] = None
     ) -> Tuple[VolatilityHMM, Dict]:
@@ -73,6 +74,7 @@ class ModelController:
             df: DataFrame with features
             n_regimes: Number of volatility regimes (default: 3)
             features: List of feature column names to use (default: HMM default features)
+            feature_bounds: Dict of {feature_name: {'min': x, 'max': y}} for custom scaling
             n_iter: Maximum training iterations (default: 100)
             prediction_date: Only train on data BEFORE this date (None = use all data).
                            This prevents data leakage when backtesting.
@@ -97,8 +99,8 @@ class ModelController:
         features_str = f", {len(features)} features" if features else ""
         logger.info(f"Training HMM with {n_regimes} regimes{features_str}, {n_iter} iterations on {len(train_df)} rows")
 
-        # Create and train model with specified features
-        hmm_model = VolatilityHMM(n_regimes=n_regimes, features=features)
+        # Create and train model with specified features and bounds
+        hmm_model = VolatilityHMM(n_regimes=n_regimes, features=features, feature_bounds=feature_bounds)
 
         # HMM extracts features internally using self.features
         metrics = hmm_model.train(train_df, n_iter=n_iter)
@@ -137,10 +139,9 @@ class ModelController:
         logger.info("HMM model loaded successfully")
         return hmm_model
 
-    @st.cache_resource
-    def load_timesfm(_self, checkpoint: str = None, device: str = 'cpu') -> TimesFMVolatilityForecaster:
+    def load_timesfm(self, checkpoint: str = None, device: str = 'cpu') -> TimesFMVolatilityForecaster:
         """
-        Load TimesFM forecaster with caching.
+        Load TimesFM forecaster and store in session state.
 
         Args:
             checkpoint: Path to TimesFM checkpoint (default: auto-download from HuggingFace)
@@ -149,9 +150,17 @@ class ModelController:
         Returns:
             TimesFMVolatilityForecaster instance
         """
+        # Check if already loaded in session state
+        if st.session_state.get('timesfm_forecaster') is not None:
+            existing = st.session_state.timesfm_forecaster
+            if existing.is_available():
+                logger.info("TimesFM already loaded, reusing existing instance")
+                return existing
+
         logger.info(f"Loading TimesFM forecaster on {device}")
         try:
             forecaster = TimesFMVolatilityForecaster(checkpoint=checkpoint, device=device)
+            # Store in session state for status tracking
             st.session_state.timesfm_forecaster = forecaster
             logger.info("TimesFM loaded successfully")
             return forecaster

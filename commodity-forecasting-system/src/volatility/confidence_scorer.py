@@ -163,11 +163,16 @@ class VolatilityConfidenceScorer:
         """
         Calculate score from HMM regime.
 
-        Calibration:
-        - 0.5% volatility → 0 score (very low)
-        - 1.0% volatility → 33 score (medium)
-        - 1.5% volatility → 67 score (high)
-        - 2.0%+ volatility → 100 score (extreme)
+        Logic:
+        1. REGIME LABEL is primary signal - if HMM says extreme_vol, trust it
+        2. Numeric volatility provides fine-tuning within regime
+
+        Regime-based minimum scores (the HMM has learned these labels):
+        - very_low_vol: max 30 (should skip)
+        - low_vol: max 40 (borderline)
+        - normal_vol: 40-60 (moderate)
+        - high_vol: 60-85 (trade)
+        - extreme_vol: 80-100 (trade aggressively)
 
         Args:
             regime_volatility: Expected volatility (e.g., 0.015 = 1.5%)
@@ -176,22 +181,31 @@ class VolatilityConfidenceScorer:
         Returns:
             Score in [0, 100]
         """
-        # Linear scaling: 0.5% = 0, 2.0% = 100
-        score = (regime_volatility - 0.005) / 0.015 * 100
+        # Regime labels determine base score ranges
+        # The HMM has learned what "extreme_vol" means for this data
+        # so we trust the label, not just the numeric volatility
+        regime_base_scores = {
+            'very_low_vol': (0, 30),    # SKIP: dead market
+            'low_vol': (20, 40),        # SKIP: insufficient edge
+            'normal_vol': (40, 60),     # TRADE: standard setup
+            'high_vol': (60, 85),       # TRADE: good opportunity
+            'extreme_vol': (80, 100),   # TRADE: best opportunity
+        }
 
-        # Clip to [0, 100]
-        score = np.clip(score, 0, 100)
+        # Get base range for this regime
+        base_range = regime_base_scores.get(regime_label, (40, 60))
+        min_score, max_score = base_range
 
-        # Bonus for high volatility regimes (categorical boost)
-        # Supports 2-5 regime configurations
-        if regime_label == 'high_vol':
-            score = min(score * 1.1, 100)  # 10% bonus
-        elif regime_label == 'extreme_vol':
-            score = min(score * 1.2, 100)  # 20% bonus for extreme regime (5-state)
-        elif regime_label == 'very_low_vol':
-            score = score * 0.9  # 10% penalty for very calm markets (4-5 state)
+        # Calculate volatility-based adjustment within the regime's range
+        # Higher volatility within a regime → higher score within that regime's band
+        # Using relative scaling: where is this volatility within typical range?
+        vol_adjustment = (regime_volatility - 0.005) / 0.015  # 0 to 1+ scale
+        vol_adjustment = np.clip(vol_adjustment, 0, 1)
 
-        return score
+        # Interpolate within regime's score range
+        score = min_score + vol_adjustment * (max_score - min_score)
+
+        return np.clip(score, 0, 100)
 
     def _calculate_timesfm_score(self, timesfm_forecast: float) -> float:
         """

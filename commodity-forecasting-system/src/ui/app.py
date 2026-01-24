@@ -90,6 +90,13 @@ def main():
     if 'model_controller' not in st.session_state:
         st.session_state.model_controller = ModelController()
 
+    # Auto-load TimesFM on startup (required component)
+    if st.session_state.get('timesfm_forecaster') is None:
+        try:
+            st.session_state.model_controller.load_timesfm(device='cpu')
+        except Exception as e:
+            logger.warning(f"TimesFM auto-load failed: {e}")
+
     # Header
     st.markdown('<div class="main-header">📈 Volatility Prediction System</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">HMM + TimesFM for 0DTE/1DTE Options Trading</div>', unsafe_allow_html=True)
@@ -189,7 +196,7 @@ def render_sidebar():
         help=create_tooltip_help("Number of historical days to download for analysis")
     )
 
-    if st.sidebar.button("🔄 Load/Refresh Data", type="primary", use_container_width=True):
+    if st.sidebar.button("🔄 Load/Refresh Data", type="primary", width='stretch'):
         with st.spinner("Loading data..."):
             try:
                 # Determine end_date for data loading
@@ -271,6 +278,61 @@ def render_sidebar():
         st.session_state.hmm_features = selected_features
         st.caption(f"*{len(selected_features)} features selected*")
 
+        # Feature Scaling Bounds Configuration
+        st.markdown("---")
+        st.markdown("**Scaling Bounds**")
+        st.caption("Min/max bounds for feature normalization")
+
+        # Initialize bounds in session state if not present
+        if 'hmm_feature_bounds' not in st.session_state:
+            st.session_state.hmm_feature_bounds = {}
+
+        feature_bounds = st.session_state.hmm_feature_bounds
+
+        for feat in selected_features:
+            info = HMM_FEATURE_INFO.get(feat, {})
+            default_min = info.get('min', 0.0)
+            default_max = info.get('max', 1.0)
+            unit = info.get('unit', '')
+            desc = info.get('description', feat)
+            effect = info.get('effect', '')
+
+            # Get current bounds or use defaults
+            current_bounds = feature_bounds.get(feat, {'min': default_min, 'max': default_max})
+
+            with st.container():
+                st.markdown(f"**{feat}** ({unit})")
+                st.caption(f"{desc}")
+                st.caption(f"*{effect}*")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_min = st.number_input(
+                        f"Min",
+                        value=float(current_bounds['min']),
+                        step=0.1,
+                        key=f"bound_min_{feat}",
+                        help=f"Lower bound for {feat} scaling"
+                    )
+                with col2:
+                    new_max = st.number_input(
+                        f"Max",
+                        value=float(current_bounds['max']),
+                        step=0.1,
+                        key=f"bound_max_{feat}",
+                        help=f"Upper bound for {feat} scaling"
+                    )
+
+                # Validate min < max
+                if new_min >= new_max:
+                    st.error(f"Min must be < Max")
+                else:
+                    feature_bounds[feat] = {'min': new_min, 'max': new_max}
+
+                st.markdown("---")
+
+        st.session_state.hmm_feature_bounds = feature_bounds
+
     training_iterations = st.sidebar.slider(
         "Training Iterations",
         min_value=50,
@@ -280,7 +342,7 @@ def render_sidebar():
         help=create_tooltip_help("Maximum iterations for HMM training")
     )
 
-    if st.sidebar.button("🚀 Train HMM", use_container_width=True):
+    if st.sidebar.button("🚀 Train HMM", width='stretch'):
         if not validate_data_loaded():
             return
 
@@ -289,13 +351,15 @@ def render_sidebar():
                 # Get prediction_date for temporal cutoff (prevents data leakage)
                 prediction_date = st.session_state.get('prediction_date')
 
-                # Get selected features from session state
+                # Get selected features and bounds from session state
                 hmm_features = st.session_state.get('hmm_features')
+                feature_bounds = st.session_state.get('hmm_feature_bounds', {})
 
                 model, metrics = st.session_state.model_controller.train_hmm(
                     df=st.session_state.features_df,
                     n_regimes=n_regimes,
                     features=hmm_features,  # User-selected features
+                    feature_bounds=feature_bounds,  # Custom scaling bounds
                     n_iter=training_iterations,
                     prediction_date=prediction_date  # Temporal cutoff for backtesting
                 )
@@ -311,7 +375,7 @@ def render_sidebar():
                 handle_error(e, "HMM Training")
 
     # Load pre-trained model option
-    if st.sidebar.button("📁 Load Pre-trained HMM", use_container_width=True):
+    if st.sidebar.button("📁 Load Pre-trained HMM", width='stretch'):
         try:
             st.session_state.model_controller.load_hmm('models/hmm_volatility.pkl')
             st.sidebar.success("✅ Loaded pre-trained HMM")
@@ -322,28 +386,22 @@ def render_sidebar():
 
     st.sidebar.divider()
 
-    # TimesFM Parameters
-    st.sidebar.header("🔮 TimesFM Parameters")
+    # TimesFM Status (auto-loaded, required component)
+    st.sidebar.header("🔮 TimesFM Foundation Model")
 
-    enable_timesfm = st.sidebar.checkbox(
-        "Enable TimesFM",
-        value=False,
-        help=create_tooltip_help("Enable TimesFM foundation model forecasting (requires checkpoint download ~800MB)")
-    )
-
-    if enable_timesfm:
-        device = st.sidebar.selectbox(
-            "Device",
-            options=['cpu', 'cuda'],
-            index=0,
-            help=create_tooltip_help("Device to run TimesFM on (cuda requires GPU)")
-        )
-
-        if st.sidebar.button("📥 Load TimesFM", use_container_width=True):
-            with st.spinner("Loading TimesFM (this may take a few minutes on first load)..."):
+    timesfm_status = st.session_state.model_controller.get_timesfm_status()
+    if timesfm_status['loaded'] and timesfm_status['available']:
+        st.sidebar.success("✅ TimesFM Active")
+        st.sidebar.caption("Foundation model ready for forecasting")
+    else:
+        st.sidebar.error("❌ TimesFM Not Available")
+        st.sidebar.caption("Required for full functionality")
+        # Provide reload option
+        if st.sidebar.button("🔄 Retry Load TimesFM", width='stretch'):
+            with st.spinner("Loading TimesFM..."):
                 try:
-                    st.session_state.model_controller.load_timesfm(device=device)
-                    st.sidebar.success("✅ TimesFM Loaded")
+                    st.session_state.model_controller.load_timesfm(device='cpu')
+                    st.rerun()
                 except Exception as e:
                     handle_error(e, "TimesFM Loading")
 
@@ -382,7 +440,7 @@ def render_sidebar():
     # Actions
     st.sidebar.header("🚀 Actions")
 
-    if st.sidebar.button("🔮 Run Prediction", type="primary", use_container_width=True):
+    if st.sidebar.button("🔮 Run Prediction", type="primary", width='stretch'):
         if not validate_data_loaded() or not validate_model_trained():
             return
 
@@ -456,7 +514,7 @@ def render_prediction_tab():
         prediction['confidence_score'],
         st.session_state.confidence_scorer.threshold
     )
-    st.plotly_chart(gauge_fig, use_container_width=True)
+    st.plotly_chart(gauge_fig, width='stretch')
 
     st.divider()
 
@@ -470,7 +528,7 @@ def render_prediction_tab():
             spy_with_regime = st.session_state.spy_data.copy()
             # Note: This is simplified - in practice, you'd add regime labels from HMM predictions
             candlestick_fig = VolatilityCharts.plot_candlestick_with_regime(spy_with_regime)
-            st.plotly_chart(candlestick_fig, use_container_width=True)
+            st.plotly_chart(candlestick_fig, width='stretch')
 
         with col2:
             st.subheader("Volatility Time Series")
@@ -478,13 +536,13 @@ def render_prediction_tab():
                 st.session_state.features_df,
                 threshold=0.012
             )
-            st.plotly_chart(vol_fig, use_container_width=True)
+            st.plotly_chart(vol_fig, width='stretch')
 
     # Regime probabilities
     st.divider()
     st.subheader("Regime Probabilities")
     prob_fig = VolatilityCharts.plot_regime_probabilities(prediction['regime_probabilities'])
-    st.plotly_chart(prob_fig, use_container_width=True)
+    st.plotly_chart(prob_fig, width='stretch')
 
 
 def render_explanation_tab():
@@ -500,7 +558,7 @@ def render_explanation_tab():
     # Feature contribution chart
     st.subheader("Feature Contributions")
     feature_fig = VolatilityCharts.plot_feature_contribution(prediction['feature_signals'])
-    st.plotly_chart(feature_fig, use_container_width=True)
+    st.plotly_chart(feature_fig, width='stretch')
 
     st.divider()
 
@@ -671,28 +729,53 @@ def render_strategy_tab():
     st.subheader("P&L Payoff Diagram")
 
     if strategy.get('should_trade', False) and position_size.get('contracts', 0) > 0:
+        risk_metrics = strategy['risk_metrics']
+        position_type = risk_metrics.get('position_type', 'long')
+        num_contracts = position_size['contracts']
+
+        # For LONG positions: debit paid is the cost (max loss)
+        # For SHORT positions: credit received is the income (max profit)
+        if position_type == 'long':
+            premium = risk_metrics['debit_paid'] * num_contracts * 100
+            max_profit = risk_metrics['max_profit_estimate'] * num_contracts * 100
+            max_loss = risk_metrics['max_loss'] * num_contracts * 100
+        else:
+            premium = risk_metrics.get('credit_received', 0) * num_contracts * 100
+            max_profit = risk_metrics.get('max_profit', 0) * num_contracts * 100
+            max_loss = risk_metrics.get('max_loss_estimate', 0) * num_contracts * 100
+
         # Generate P&L payoff diagram for the strategy
         pnl_fig = VolatilityCharts.plot_pnl_payoff_diagram(
             current_price=current_price,
             call_strike=strategy['call_strike'],
             put_strike=strategy['put_strike'],
-            credit_received=strategy['risk_metrics']['credit_received'] * position_size['contracts'] * 100,
-            strategy_name=strategy['name']
+            credit_received=premium,  # For long, this is debit; chart will be adjusted
+            strategy_name=strategy['name'],
+            position_type=position_type
         )
-        st.plotly_chart(pnl_fig, use_container_width=True)
+        st.plotly_chart(pnl_fig, width='stretch')
 
         # Risk metrics summary
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Max Profit", f"${strategy['risk_metrics']['max_profit'] * position_size['contracts'] * 100:.0f}")
+            label = "Max Profit (Est)" if position_type == 'long' else "Max Profit"
+            st.metric(label, f"${max_profit:.0f}")
         with col2:
-            st.metric("Max Loss Est.", f"${strategy['risk_metrics']['max_loss_estimate'] * position_size['contracts'] * 100:.0f}")
+            label = "Max Loss (Premium)" if position_type == 'long' else "Max Loss Est."
+            st.metric(label, f"${max_loss:.0f}")
         with col3:
-            st.metric("Win Probability", f"{strategy['risk_metrics']['profit_probability']*100:.0f}%")
+            st.metric("Win Probability", f"{risk_metrics['profit_probability']*100:.0f}%")
         with col4:
-            st.metric("Risk/Reward", f"{strategy['risk_metrics']['risk_reward_ratio']:.2f}")
+            st.metric("Risk/Reward", f"{risk_metrics['risk_reward_ratio']:.2f}")
     else:
-        st.info("📊 P&L visualization not available for SKIP trades (low volatility regime).")
+        # Provide specific reason for skip
+        if not strategy.get('should_trade', False):
+            reason = f"Regime '{prediction['regime_label']}' indicates low volatility expected"
+        elif position_size.get('contracts', 0) == 0:
+            reason = position_size.get('reason', 'Position size is zero')
+        else:
+            reason = "Trade conditions not met"
+        st.info(f"📊 P&L visualization not available. Reason: {reason}")
 
     # Historical P&L (if backtest data exists)
     st.divider()
@@ -709,11 +792,11 @@ def render_strategy_tab():
                 with col1:
                     # Cumulative P&L
                     cum_pnl_fig = VolatilityCharts.plot_cumulative_pnl(trades_df)
-                    st.plotly_chart(cum_pnl_fig, use_container_width=True)
+                    st.plotly_chart(cum_pnl_fig, width='stretch')
                 with col2:
                     # P&L distribution
                     pnl_dist_fig = VolatilityCharts.plot_pnl_distribution(trades_df['pnl'].values)
-                    st.plotly_chart(pnl_dist_fig, use_container_width=True)
+                    st.plotly_chart(pnl_dist_fig, width='stretch')
             else:
                 st.info("ℹ️ Backtest file exists but no P&L column found.")
         except Exception as e:
