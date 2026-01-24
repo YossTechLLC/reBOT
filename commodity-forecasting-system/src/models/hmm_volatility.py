@@ -85,10 +85,17 @@ class VolatilityHMM:
             'range_std_5'
         ]
 
-        # Check for missing columns
+        # Check for missing feature columns
         missing = set(required_cols) - set(df.columns)
         if missing:
-            raise ValueError(f"Missing required columns: {missing}")
+            raise ValueError(f"Missing required feature columns: {missing}")
+
+        # Check for target column
+        if 'intraday_range_pct' not in df.columns:
+            raise ValueError(
+                "Missing target column 'intraday_range_pct'. "
+                "DataFrame must include both features AND target column."
+            )
 
         # Extract features
         X = df[required_cols].values

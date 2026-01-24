@@ -16,7 +16,11 @@
       "Bash(tee:*)",
       "Bash(source:*)",
       "Bash(source .venv/bin/activate)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ln:*)",
+      "Bash(streamlit:*)",
+      "Bash(find:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

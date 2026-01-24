@@ -1,0 +1,26 @@
+# UI-Specific Dependencies for Volatility Prediction Dashboard
+# Install with: pip install -r requirements-ui.txt
+
+# Core UI Framework
+streamlit>=1.40.0
+
+# Visualization Libraries
+plotly>=5.18.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+kaleido>=0.2.1              # For static image export from Plotly
+
+# Explainability & ML
+shap>=0.44.0                # SHAP values for feature importance
+
+# Enhanced UI Components
+streamlit-aggrid>=0.3.4     # Interactive tables
+streamlit-option-menu>=0.3.6 # Better navigation menus
+
+# Data Processing (may already be in main requirements.txt)
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Utilities
+python-dateutil>=2.8.0
+pytz>=2023.3

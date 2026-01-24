@@ -1,0 +1,29 @@
+# Streamlit Configuration for Volatility Prediction UI
+# Documentation: https://docs.streamlit.io/library/advanced-features/configuration
+
+[theme]
+# Color theme
+primaryColor = "#1f77b4"          # Blue - for primary buttons and accents
+backgroundColor = "#ffffff"        # White - main background
+secondaryBackgroundColor = "#f0f2f6"  # Light gray - sidebar and secondary elements
+textColor = "#262730"              # Dark gray - main text color
+font = "sans serif"                # Font family
+
+[server]
+# Server settings
+headless = true                    # Run without browser auto-open (useful for remote deployment)
+port = 8501                        # Default Streamlit port
+enableCORS = true                  # CORS - must be true when enableXsrfProtection is true
+enableXsrfProtection = true        # XSRF protection
+maxUploadSize = 200                # Max file upload size in MB
+
+[browser]
+# Browser settings
+gatherUsageStats = false           # Don't send usage stats to Streamlit
+serverAddress = "localhost"        # Server address (change for remote access)
+serverPort = 8501                  # Browser connection port
+
+[runner]
+# Script runner settings
+magicEnabled = true                # Enable magic commands
+fastReruns = true                  # Enable fast reruns for better performance
