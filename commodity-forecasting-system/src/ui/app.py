@@ -152,9 +152,18 @@ def render_sidebar():
                 st.session_state.features_df = features_df
                 st.session_state.data_loaded = True
 
+                # Cache invalidation: Clear stale predictions and model state
+                # The HMM model was trained on old data and is now invalid
+                st.session_state.last_prediction = None
+                st.session_state.hmm_model = None
+                st.session_state.hmm_metrics = None
+                st.session_state.validation_results = None
+                logger.info("Cache invalidated: cleared hmm_model, last_prediction, validation_results")
+
                 summary = st.session_state.data_manager.get_data_summary(features_df)
                 st.sidebar.success(f"✅ Loaded {summary['total_rows']} days")
                 st.sidebar.caption(f"Date range: {summary['start_date']} to {summary['end_date']}")
+                st.sidebar.info("ℹ️ Please retrain HMM model with new data")
             except Exception as e:
                 handle_error(e, "Data Loading")
 
@@ -417,24 +426,83 @@ def render_validation_tab():
     """Render the validation results tab."""
     st.header("🔍 Walk-Forward Validation")
 
-    st.info("ℹ️ Validation functionality will run the validate_volatility_mvp.py script.")
+    st.info("ℹ️ Run walk-forward validation to test prediction accuracy on held-out data.")
 
-    if st.button("▶️ Run Validation", type="primary"):
-        st.warning("⚠️ This feature is not yet implemented. Use scripts/validate_volatility_mvp.py directly.")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("▶️ Run Validation", type="primary"):
+            with st.spinner("Running validation (this may take 1-2 minutes)..."):
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        ['python', 'scripts/validate_volatility_mvp.py'],
+                        capture_output=True,
+                        text=True,
+                        cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+                        timeout=300  # 5 minute timeout
+                    )
+                    if result.returncode == 0:
+                        st.success("✅ Validation complete!")
+                        # Load results
+                        results_path = os.path.join(
+                            os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+                            'outputs', 'validation_results.csv'
+                        )
+                        if os.path.exists(results_path):
+                            st.session_state.validation_results = pd.read_csv(results_path, index_col=0, parse_dates=True)
+                            st.rerun()
+                    else:
+                        st.error(f"Validation failed:\n{result.stderr}")
+                        logger.error(f"Validation script failed: {result.stderr}")
+                except subprocess.TimeoutExpired:
+                    st.error("Validation timed out after 5 minutes")
+                except Exception as e:
+                    handle_error(e, "Validation")
 
-    # If validation results exist, display them
+    with col2:
+        if st.button("📂 Load Existing Results"):
+            results_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+                'outputs', 'validation_results.csv'
+            )
+            if os.path.exists(results_path):
+                st.session_state.validation_results = pd.read_csv(results_path, index_col=0, parse_dates=True)
+                st.success("✅ Loaded existing validation results")
+                st.rerun()
+            else:
+                st.warning("No existing validation results found. Run validation first.")
+
+    # Display validation results if they exist
     if st.session_state.get('validation_results') is not None:
         results_df = st.session_state.validation_results
 
+        st.divider()
         st.subheader("Validation Metrics")
-        # Display metrics here
 
+        # Calculate and display key metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            accuracy = (results_df['correct_prediction'].sum() / len(results_df)) * 100 if 'correct_prediction' in results_df.columns else 0
+            st.metric("Accuracy", f"{accuracy:.1f}%", delta="Target: 50%")
+        with col2:
+            trade_signals = results_df['trade_signal'].sum() if 'trade_signal' in results_df.columns else 0
+            st.metric("Trade Signals", f"{trade_signals}/{len(results_df)}")
+        with col3:
+            if 'confidence_score' in results_df.columns:
+                avg_conf = results_df['confidence_score'].mean()
+                st.metric("Avg Confidence", f"{avg_conf:.1f}")
+        with col4:
+            st.metric("Test Days", len(results_df))
+
+        st.divider()
         st.subheader("Validation Results")
         display_dataframe_with_download(
             results_df,
             "Full Validation Results",
             "validation_results.csv"
         )
+    else:
+        st.info("ℹ️ No validation results loaded. Click 'Run Validation' or 'Load Existing Results'.")
 
 
 def render_strategy_tab():
@@ -489,10 +557,57 @@ def render_strategy_tab():
     strategy_output = format_strategy_output(strategy, position_size)
     st.markdown(strategy_output)
 
-    # P&L visualization (placeholder)
+    # P&L visualization
     st.divider()
-    st.subheader("Expected P&L Distribution")
-    st.info("ℹ️ P&L visualization coming soon...")
+    st.subheader("P&L Payoff Diagram")
+
+    # Generate P&L payoff diagram for the strategy
+    pnl_fig = VolatilityCharts.plot_pnl_payoff_diagram(
+        current_price=current_price,
+        call_strike=strategy['call_strike'],
+        put_strike=strategy['put_strike'],
+        credit_received=strategy['credit_received'] * position_size['contracts'] * 100,  # Total credit
+        strategy_name=strategy['strategy_name']
+    )
+    st.plotly_chart(pnl_fig, use_container_width=True)
+
+    # Risk metrics summary
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Max Profit", f"${strategy['max_profit'] * position_size['contracts']:.0f}")
+    with col2:
+        st.metric("Max Loss Est.", f"${strategy['max_loss_estimate'] * position_size['contracts']:.0f}")
+    with col3:
+        st.metric("Win Probability", f"{strategy['profit_probability']*100:.0f}%")
+    with col4:
+        st.metric("Risk/Reward", f"{strategy['risk_reward_ratio']:.2f}")
+
+    # Historical P&L (if backtest data exists)
+    st.divider()
+    st.subheader("Historical Backtest Results")
+    backtest_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+        'outputs', 'phase0_simulated_trades.csv'
+    )
+    if os.path.exists(backtest_path):
+        try:
+            trades_df = pd.read_csv(backtest_path)
+            if 'pnl' in trades_df.columns:
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Cumulative P&L
+                    cum_pnl_fig = VolatilityCharts.plot_cumulative_pnl(trades_df)
+                    st.plotly_chart(cum_pnl_fig, use_container_width=True)
+                with col2:
+                    # P&L distribution
+                    pnl_dist_fig = VolatilityCharts.plot_pnl_distribution(trades_df['pnl'].values)
+                    st.plotly_chart(pnl_dist_fig, use_container_width=True)
+            else:
+                st.info("ℹ️ Backtest file exists but no P&L column found.")
+        except Exception as e:
+            st.warning(f"Could not load backtest data: {e}")
+    else:
+        st.info("ℹ️ No historical backtest data available. Run validation to generate trades.")
 
 
 if __name__ == "__main__":

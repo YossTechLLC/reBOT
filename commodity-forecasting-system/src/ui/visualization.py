@@ -405,3 +405,304 @@ class VolatilityCharts:
         fig.update_yaxes(title_text='Correct (1) / Incorrect (0)', row=2, col=1)
 
         return fig
+
+    @staticmethod
+    def plot_pnl_payoff_diagram(
+        current_price: float,
+        call_strike: float,
+        put_strike: float,
+        credit_received: float,
+        strategy_name: str = 'Short Strangle'
+    ) -> go.Figure:
+        """
+        Create P&L payoff diagram for options strategy.
+
+        Shows profit/loss at different underlying prices at expiration.
+        For a short strangle, max profit is at the current price, with
+        losses increasing as price moves beyond the strikes.
+
+        Args:
+            current_price: Current SPY price
+            call_strike: Call strike price
+            put_strike: Put strike price
+            credit_received: Credit collected (premium in dollars)
+            strategy_name: Name of strategy for title
+
+        Returns:
+            Plotly Figure with payoff curve
+        """
+        # Generate price range (20% below put to 20% above call)
+        price_min = put_strike * 0.92
+        price_max = call_strike * 1.08
+        price_range = np.linspace(price_min, price_max, 200)
+
+        # Calculate P&L at each price point
+        pnl = []
+        for price in price_range:
+            # Short strangle P&L at expiration:
+            # If price < put_strike: loss = (put_strike - price) * 100 - credit
+            # If price > call_strike: loss = (price - call_strike) * 100 - credit
+            # If between strikes: profit = credit
+            call_intrinsic = max(price - call_strike, 0) * 100
+            put_intrinsic = max(put_strike - price, 0) * 100
+            position_pnl = credit_received - call_intrinsic - put_intrinsic
+            pnl.append(position_pnl)
+
+        pnl = np.array(pnl)
+
+        # Create figure
+        fig = go.Figure()
+
+        # Color the fill based on profit/loss
+        profit_mask = pnl >= 0
+        loss_mask = pnl < 0
+
+        # Add profit region
+        profit_prices = price_range[profit_mask]
+        profit_pnl = pnl[profit_mask]
+        if len(profit_prices) > 0:
+            fig.add_trace(go.Scatter(
+                x=profit_prices,
+                y=profit_pnl,
+                mode='lines',
+                name='Profit Zone',
+                line=dict(color='green', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(0, 200, 0, 0.2)'
+            ))
+
+        # Add loss regions
+        loss_prices = price_range[loss_mask]
+        loss_pnl = pnl[loss_mask]
+        if len(loss_prices) > 0:
+            fig.add_trace(go.Scatter(
+                x=loss_prices,
+                y=loss_pnl,
+                mode='lines',
+                name='Loss Zone',
+                line=dict(color='red', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(200, 0, 0, 0.2)'
+            ))
+
+        # Add zero line
+        fig.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+
+        # Add current price marker
+        fig.add_vline(
+            x=current_price,
+            line_dash='dash',
+            line_color='blue',
+            annotation_text=f'Current: ${current_price:.2f}',
+            annotation_position='top'
+        )
+
+        # Add strike markers
+        fig.add_vline(
+            x=put_strike,
+            line_dash='dot',
+            line_color='orange',
+            annotation_text=f'Put: ${put_strike:.0f}',
+            annotation_position='bottom left'
+        )
+        fig.add_vline(
+            x=call_strike,
+            line_dash='dot',
+            line_color='orange',
+            annotation_text=f'Call: ${call_strike:.0f}',
+            annotation_position='bottom right'
+        )
+
+        # Add max profit annotation
+        fig.add_annotation(
+            x=current_price,
+            y=credit_received,
+            text=f'Max Profit: ${credit_received:.0f}',
+            showarrow=True,
+            arrowhead=2,
+            arrowcolor='green'
+        )
+
+        # Format layout
+        fig.update_layout(
+            title=f'{strategy_name} P&L at Expiration',
+            xaxis_title='SPY Price at Expiration ($)',
+            yaxis_title='Profit/Loss ($)',
+            template='plotly_white',
+            height=400,
+            showlegend=True,
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        )
+
+        return fig
+
+    @staticmethod
+    def plot_pnl_distribution(
+        pnl_array: np.ndarray,
+        title: str = 'P&L Distribution',
+        show_stats: bool = True
+    ) -> go.Figure:
+        """
+        Create histogram of P&L outcomes from backtesting.
+
+        Args:
+            pnl_array: Array of P&L values from historical trades
+            title: Chart title
+            show_stats: Whether to show statistics overlay
+
+        Returns:
+            Plotly Figure with P&L histogram
+        """
+        # Calculate statistics
+        mean_pnl = np.mean(pnl_array)
+        median_pnl = np.median(pnl_array)
+        std_pnl = np.std(pnl_array)
+        win_rate = np.sum(pnl_array > 0) / len(pnl_array) * 100
+        total_pnl = np.sum(pnl_array)
+
+        # Create histogram
+        fig = go.Figure()
+
+        # Color bins by profit/loss
+        fig.add_trace(go.Histogram(
+            x=pnl_array,
+            nbinsx=30,
+            name='P&L',
+            marker=dict(
+                color=np.where(pnl_array >= 0, 'green', 'red'),
+                line=dict(color='white', width=1)
+            ),
+            opacity=0.75
+        ))
+
+        # Add mean line
+        fig.add_vline(
+            x=mean_pnl,
+            line_dash='dash',
+            line_color='blue',
+            annotation_text=f'Mean: ${mean_pnl:.2f}',
+            annotation_position='top'
+        )
+
+        # Add zero line
+        fig.add_vline(
+            x=0,
+            line_dash='solid',
+            line_color='gray',
+            line_width=2
+        )
+
+        # Add statistics annotation
+        if show_stats:
+            stats_text = (
+                f"<b>Statistics</b><br>"
+                f"Mean: ${mean_pnl:.2f}<br>"
+                f"Median: ${median_pnl:.2f}<br>"
+                f"Std Dev: ${std_pnl:.2f}<br>"
+                f"Win Rate: {win_rate:.1f}%<br>"
+                f"Total P&L: ${total_pnl:.2f}"
+            )
+            fig.add_annotation(
+                x=0.98, y=0.98,
+                xref='paper', yref='paper',
+                text=stats_text,
+                showarrow=False,
+                bgcolor='rgba(255,255,255,0.9)',
+                bordercolor='gray',
+                borderwidth=1,
+                font=dict(size=11),
+                align='left'
+            )
+
+        fig.update_layout(
+            title=title,
+            xaxis_title='P&L ($)',
+            yaxis_title='Frequency',
+            template='plotly_white',
+            height=400,
+            showlegend=False
+        )
+
+        return fig
+
+    @staticmethod
+    def plot_cumulative_pnl(
+        trades_df: pd.DataFrame,
+        pnl_col: str = 'pnl',
+        date_col: str = 'date',
+        title: str = 'Cumulative P&L Over Time'
+    ) -> go.Figure:
+        """
+        Create cumulative P&L curve from trade history.
+
+        Args:
+            trades_df: DataFrame with trade history
+            pnl_col: Column name for P&L values
+            date_col: Column name for dates
+            title: Chart title
+
+        Returns:
+            Plotly Figure with cumulative P&L line
+        """
+        # Calculate cumulative P&L
+        if date_col in trades_df.columns:
+            trades_sorted = trades_df.sort_values(date_col)
+            x_values = trades_sorted[date_col]
+        else:
+            trades_sorted = trades_df
+            x_values = range(len(trades_df))
+
+        cumulative_pnl = trades_sorted[pnl_col].cumsum()
+
+        # Create figure
+        fig = go.Figure()
+
+        # Add cumulative P&L line
+        fig.add_trace(go.Scatter(
+            x=x_values,
+            y=cumulative_pnl,
+            mode='lines+markers',
+            name='Cumulative P&L',
+            line=dict(color='blue', width=2),
+            marker=dict(size=6),
+            hovertemplate='Trade %{pointNumber+1}<br>Cumulative: $%{y:.2f}<extra></extra>'
+        ))
+
+        # Fill based on positive/negative
+        fig.add_trace(go.Scatter(
+            x=x_values,
+            y=cumulative_pnl,
+            mode='lines',
+            fill='tozeroy',
+            fillcolor='rgba(0, 100, 200, 0.1)',
+            line=dict(width=0),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+
+        # Add zero line
+        fig.add_hline(y=0, line_dash='dash', line_color='gray')
+
+        # Add final P&L annotation
+        final_pnl = cumulative_pnl.iloc[-1]
+        color = 'green' if final_pnl >= 0 else 'red'
+        fig.add_annotation(
+            x=x_values.iloc[-1] if hasattr(x_values, 'iloc') else x_values[-1],
+            y=final_pnl,
+            text=f'Total: ${final_pnl:.2f}',
+            showarrow=True,
+            arrowhead=2,
+            arrowcolor=color,
+            font=dict(color=color, size=12, weight='bold')
+        )
+
+        fig.update_layout(
+            title=title,
+            xaxis_title='Date' if date_col in trades_df.columns else 'Trade Number',
+            yaxis_title='Cumulative P&L ($)',
+            template='plotly_white',
+            height=400,
+            showlegend=True
+        )
+
+        return fig

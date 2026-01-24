@@ -89,6 +89,12 @@ class ModelController:
         st.session_state.hmm_model = hmm_model
         st.session_state.hmm_metrics = metrics
 
+        # Track training data for coherency checks
+        st.session_state.hmm_training_data_hash = hash(df.values.tobytes())
+        st.session_state.hmm_training_date_range = (df.index[0], df.index[-1])
+        st.session_state.hmm_training_rows = len(df)
+        logger.info(f"HMM training metadata: {len(df)} rows, {df.index[0]} to {df.index[-1]}")
+
         logger.info(f"HMM training complete. Converged: {metrics['converged']}")
         return hmm_model, metrics
 
@@ -192,6 +198,23 @@ class ModelController:
         if st.session_state.hmm_model is None:
             raise ValueError("HMM model not trained. Train model first.")
 
+        # Check data-model coherency
+        current_data_hash = hash(features_df.values.tobytes())
+        training_hash = st.session_state.get('hmm_training_data_hash')
+        if training_hash and current_data_hash != training_hash:
+            training_range = st.session_state.get('hmm_training_date_range', ('unknown', 'unknown'))
+            logger.warning(
+                f"Data has changed since model training. "
+                f"Model trained on: {training_range[0]} to {training_range[1]}. "
+                f"Current data: {features_df.index[0]} to {features_df.index[-1]}. "
+                f"Consider retraining for accurate predictions."
+            )
+            st.warning(
+                f"⚠️ Model trained on different data ({training_range[0].strftime('%Y-%m-%d') if hasattr(training_range[0], 'strftime') else training_range[0]} - "
+                f"{training_range[1].strftime('%Y-%m-%d') if hasattr(training_range[1], 'strftime') else training_range[1]}). "
+                f"Retrain for best results."
+            )
+
         logger.info("Generating prediction for latest data")
 
         # Get HMM prediction
@@ -283,7 +306,9 @@ class ModelController:
             logger.warning("confidence_scorer was None, created new instance")
 
         scorer = st.session_state.confidence_scorer
-        scorer.regime_weight = regime_weight
-        scorer.timesfm_weight = timesfm_weight
-        scorer.feature_weight = feature_weight
+        # Fix: Update the weights dictionary that calculate_score() actually uses
+        # Previously this set individual attributes that were never read
+        scorer.weights['regime'] = regime_weight
+        scorer.weights['timesfm'] = timesfm_weight
+        scorer.weights['features'] = feature_weight
         logger.info(f"Confidence weights updated: regime={regime_weight}, timesfm={timesfm_weight}, feature={feature_weight}")

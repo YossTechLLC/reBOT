@@ -228,12 +228,31 @@ def validate_data_loaded() -> bool:
     """
     Check if data is loaded in session state.
 
+    Performs comprehensive validation:
+    1. Checks data_loaded flag
+    2. Verifies features_df is not None
+    3. Verifies features_df is not empty
+
     Returns:
-        True if data is loaded, False otherwise
+        True if data is loaded and valid, False otherwise
     """
+    # Check 1: Boolean flag
     if not st.session_state.get('data_loaded', False):
         st.warning("⚠️ No data loaded. Please load data first using the sidebar.")
         return False
+
+    # Check 2: features_df exists (prevents race condition)
+    features_df = st.session_state.get('features_df')
+    if features_df is None:
+        st.error("⚠️ Data flag is set but features are missing. Please reload data.")
+        logger.error("Race condition detected: data_loaded=True but features_df=None")
+        return False
+
+    # Check 3: features_df has data
+    if len(features_df) == 0:
+        st.error("⚠️ Data loaded but contains no rows. Please load more history.")
+        return False
+
     return True
 
 
