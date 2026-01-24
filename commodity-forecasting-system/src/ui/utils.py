@@ -40,7 +40,14 @@ def initialize_session_state():
         'vix_data': None,
         'features_df': None,
         'last_prediction': None,
-        'validation_results': None
+        'validation_results': None,
+        # Prediction date feature - enables point-in-time backtesting
+        'prediction_date': None,          # Selected date to predict for (None = tomorrow/latest)
+        'use_latest_date': True,          # If True, predict for tomorrow; if False, use prediction_date
+        'available_date_range': None,     # (min_date, max_date) tuple from loaded data
+        'data_end_date': None,            # Actual end date of loaded data (for display)
+        # HMM feature selection - configurable features for regime detection
+        'hmm_features': None,             # Selected features (None = use defaults)
     }
 
     for key, value in defaults.items():
@@ -273,16 +280,24 @@ def get_color_for_regime(regime: str) -> str:
     """
     Get color code for a regime label.
 
+    Supports 2-5 regime configurations:
+    - 2 regimes: low_vol, high_vol
+    - 3 regimes: low_vol, normal_vol, high_vol
+    - 4 regimes: very_low_vol, low_vol, normal_vol, high_vol
+    - 5 regimes: very_low_vol, low_vol, normal_vol, high_vol, extreme_vol
+
     Args:
-        regime: Regime label ('low_vol', 'normal_vol', 'high_vol')
+        regime: Regime label
 
     Returns:
         Color code (CSS color name or hex)
     """
     colors = {
-        'low_vol': '#90EE90',      # Light green
-        'normal_vol': '#FFD700',   # Gold
-        'high_vol': '#FF6347'      # Tomato red
+        'very_low_vol': '#B0E0B0',  # Pale green (very calm)
+        'low_vol': '#90EE90',       # Light green
+        'normal_vol': '#FFD700',    # Gold
+        'high_vol': '#FF6347',      # Tomato red
+        'extreme_vol': '#DC143C'    # Crimson (panic)
     }
     return colors.get(regime, '#808080')  # Default gray
 
@@ -360,10 +375,37 @@ DEFAULT_CONFIDENCE_THRESHOLD = 40.0
 DEFAULT_ACCOUNT_SIZE = 10000
 DEFAULT_MAX_RISK_PCT = 0.02
 
+# HMM feature configuration
 HMM_DEFAULT_FEATURES = [
     'overnight_gap_abs',
     'range_ma_5',
     'vix_level',
     'volume_ratio',
     'range_std_5'
+]
+
+# All available features that can be used for HMM (must exist in features_df)
+HMM_AVAILABLE_FEATURES = [
+    # Core volatility features (default set)
+    'overnight_gap_abs',    # Overnight gap magnitude - strong morning volatility predictor
+    'range_ma_5',           # 5-day average intraday range - recent volatility trend
+    'vix_level',            # VIX level - external fear gauge
+    'volume_ratio',         # Volume vs 20-day average - confirms real moves
+    'range_std_5',          # Volatility of volatility - clustering detection
+    # Additional gap features
+    'gap_ma_5',             # 5-day average gap - gap clustering
+    'gap_zscore',           # Gap outlier detection
+    # Additional range features
+    'range_expansion',      # Current range vs average - regime shift indicator
+    'high_range_days_5',    # Count of volatile days in last 5 - clustering
+    'range_ma_10',          # 10-day average range - medium-term trend
+    # VIX features
+    'vix_change_1d',        # VIX 1-day change - fear spike detection
+    'vix_ma_5',             # 5-day VIX average
+    # Volume features
+    'volume_surge',         # Binary: volume > 1.5x average
+    'quality_volatility',   # High volume + high range combo
+    # Time features
+    'is_monday',            # Monday effect (weekend gap resolution)
+    'is_friday',            # Friday effect (position squaring)
 ]

@@ -24,7 +24,7 @@ Usage:
 import sys
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import streamlit as st
 import pandas as pd
@@ -134,6 +134,52 @@ def render_sidebar():
     # Data Settings
     st.sidebar.header("📊 Data Settings")
 
+    # Prediction date mode toggle
+    use_latest = st.sidebar.checkbox(
+        "Predict for Tomorrow (Latest)",
+        value=st.session_state.get('use_latest_date', True),
+        help=create_tooltip_help("When checked, predict for tomorrow using latest data. Uncheck to select a historical date for backtesting.")
+    )
+    st.session_state.use_latest_date = use_latest
+
+    # Date picker for historical predictions (only shown when not using latest)
+    if not use_latest:
+        # Determine available date range from loaded data, or use sensible defaults
+        if st.session_state.get('features_df') is not None:
+            min_date = st.session_state.features_df.index[0].to_pydatetime().date()
+            data_end = st.session_state.features_df.index[-1].to_pydatetime().date()
+            # Allow predicting for the day AFTER data ends (using last day's features)
+            max_date = data_end + timedelta(days=1)
+        else:
+            # Default range before data is loaded
+            max_date = datetime.now().date()
+            min_date = max_date - timedelta(days=180)
+
+        # Get previously selected date or default to max_date
+        default_date = st.session_state.get('prediction_date')
+        if default_date is None:
+            default_date = max_date
+        elif hasattr(default_date, 'date'):
+            default_date = default_date.date()
+
+        # Clamp default_date to valid range (handles stale session state)
+        if default_date < min_date:
+            default_date = min_date
+        elif default_date > max_date:
+            default_date = max_date
+
+        selected_date = st.sidebar.date_input(
+            "Prediction Date",
+            value=default_date,
+            min_value=min_date,
+            max_value=max_date,
+            help=create_tooltip_help("Select the date you want to predict FOR. Uses prior day's features.")
+        )
+        st.session_state.prediction_date = pd.Timestamp(selected_date)
+        st.sidebar.caption(f"📅 Predicting FOR: {selected_date} (using prior day's data)")
+    else:
+        st.session_state.prediction_date = None
+
     history_days = st.sidebar.slider(
         "History Days",
         min_value=30,
@@ -146,11 +192,25 @@ def render_sidebar():
     if st.sidebar.button("🔄 Load/Refresh Data", type="primary", use_container_width=True):
         with st.spinner("Loading data..."):
             try:
-                spy_data, vix_data, features_df = st.session_state.data_manager.load_complete_dataset(history_days)
+                # Determine end_date for data loading
+                # For historical predictions, load data UP TO the prediction date
+                prediction_date = st.session_state.get('prediction_date')
+                if prediction_date is not None:
+                    # Convert to datetime for data loading
+                    end_date = prediction_date.to_pydatetime()
+                    logger.info(f"Historical mode: loading data up to {end_date}")
+                else:
+                    end_date = None  # Use current date (default)
+
+                spy_data, vix_data, features_df = st.session_state.data_manager.load_complete_dataset(
+                    history_days,
+                    end_date=end_date
+                )
                 st.session_state.spy_data = spy_data
                 st.session_state.vix_data = vix_data
                 st.session_state.features_df = features_df
                 st.session_state.data_loaded = True
+                st.session_state.data_end_date = features_df.index[-1]  # Track actual data end
 
                 # Cache invalidation: Clear stale predictions and model state
                 # The HMM model was trained on old data and is now invalid
@@ -163,7 +223,10 @@ def render_sidebar():
                 summary = st.session_state.data_manager.get_data_summary(features_df)
                 st.sidebar.success(f"✅ Loaded {summary['total_rows']} days")
                 st.sidebar.caption(f"Date range: {summary['start_date']} to {summary['end_date']}")
-                st.sidebar.info("ℹ️ Please retrain HMM model with new data")
+                if prediction_date is not None:
+                    st.sidebar.info(f"📅 Historical mode: Data ends at {summary['end_date']}")
+                else:
+                    st.sidebar.info("ℹ️ Please retrain HMM model with new data")
             except Exception as e:
                 handle_error(e, "Data Loading")
 
@@ -177,14 +240,36 @@ def render_sidebar():
         min_value=2,
         max_value=5,
         value=DEFAULT_HMM_REGIMES,
-        help=create_tooltip_help("Number of volatility regimes (typically 3: low, normal, high)")
+        help=create_tooltip_help("2=low/high, 3=+normal, 4=+very_low, 5=+extreme")
     )
 
-    # Display HMM features (informational only - HMM uses these internally)
-    with st.sidebar.expander("📊 HMM Features", expanded=False):
-        for feat in HMM_DEFAULT_FEATURES:
-            st.caption(f"• {feat}")
-        st.caption("*HMM uses these 5 features internally*")
+    # HMM Feature Selection (configurable)
+    with st.sidebar.expander("🔧 HMM Features", expanded=False):
+        # Filter available features to those that exist in the loaded data
+        if st.session_state.get('features_df') is not None:
+            available_in_data = [f for f in HMM_AVAILABLE_FEATURES
+                                 if f in st.session_state.features_df.columns]
+        else:
+            available_in_data = HMM_DEFAULT_FEATURES
+
+        # Get current selection or defaults
+        current_selection = st.session_state.get('hmm_features')
+        if current_selection is None:
+            current_selection = HMM_DEFAULT_FEATURES
+
+        selected_features = st.multiselect(
+            "Select Features",
+            options=available_in_data,
+            default=[f for f in current_selection if f in available_in_data],
+            help="Features used by HMM for regime detection. Min 2 required."
+        )
+
+        if len(selected_features) < 2:
+            st.warning("⚠️ Select at least 2 features")
+            selected_features = HMM_DEFAULT_FEATURES  # Fallback
+
+        st.session_state.hmm_features = selected_features
+        st.caption(f"*{len(selected_features)} features selected*")
 
     training_iterations = st.sidebar.slider(
         "Training Iterations",
@@ -201,15 +286,25 @@ def render_sidebar():
 
         with st.spinner("Training HMM model..."):
             try:
+                # Get prediction_date for temporal cutoff (prevents data leakage)
+                prediction_date = st.session_state.get('prediction_date')
+
+                # Get selected features from session state
+                hmm_features = st.session_state.get('hmm_features')
+
                 model, metrics = st.session_state.model_controller.train_hmm(
                     df=st.session_state.features_df,
                     n_regimes=n_regimes,
-                    n_iter=training_iterations
+                    features=hmm_features,  # User-selected features
+                    n_iter=training_iterations,
+                    prediction_date=prediction_date  # Temporal cutoff for backtesting
                 )
 
                 if metrics['converged']:
                     st.sidebar.success("✅ HMM Training Complete")
                     st.sidebar.caption(f"Log-Likelihood: {metrics['log_likelihood']:.2f}")
+                    if prediction_date is not None:
+                        st.sidebar.caption(f"📅 Trained on data before {prediction_date.strftime('%Y-%m-%d')}")
                 else:
                     st.sidebar.warning("⚠️ HMM did not converge. Try increasing iterations.")
             except Exception as e:
@@ -293,11 +388,16 @@ def render_sidebar():
 
         with st.spinner("Generating prediction..."):
             try:
-                prediction = st.session_state.model_controller.predict_latest(
-                    st.session_state.features_df
+                # Get prediction_date for historical or current prediction
+                prediction_date = st.session_state.get('prediction_date')
+
+                prediction = st.session_state.model_controller.predict_for_date(
+                    st.session_state.features_df,
+                    prediction_date=prediction_date
                 )
                 st.session_state.last_prediction = prediction
                 st.sidebar.success("✅ Prediction Complete")
+                st.sidebar.caption(f"For: {prediction['prediction_label']}")
                 st.sidebar.caption(f"Confidence: {prediction['confidence_score']:.1f}/100")
             except Exception as e:
                 handle_error(e, "Prediction")
@@ -305,13 +405,22 @@ def render_sidebar():
 
 def render_prediction_tab():
     """Render the main prediction dashboard tab."""
-    st.header("📈 Current Prediction Dashboard")
-
     prediction = st.session_state.get('last_prediction')
+
+    # Dynamic header based on prediction type
+    if prediction is not None and prediction.get('is_historical', False):
+        st.header(f"📈 Historical Prediction: {prediction['prediction_label']}")
+        st.caption(f"🔍 Backtesting mode - Using features from {prediction['features_date'].strftime('%Y-%m-%d')}")
+    else:
+        st.header("📈 Current Prediction Dashboard")
 
     if prediction is None:
         st.info("ℹ️ No prediction available. Load data, train model, and run prediction using the sidebar.")
         return
+
+    # Historical prediction indicator
+    if prediction.get('is_historical', False):
+        st.info(f"📅 **Historical Backtest**: Predicting regime for {prediction['prediction_label']} using only data available before that date.")
 
     # Prediction card
     col1, col2, col3 = st.columns(3)
@@ -557,30 +666,33 @@ def render_strategy_tab():
     strategy_output = format_strategy_output(strategy, position_size)
     st.markdown(strategy_output)
 
-    # P&L visualization
+    # P&L visualization (only for tradeable strategies)
     st.divider()
     st.subheader("P&L Payoff Diagram")
 
-    # Generate P&L payoff diagram for the strategy
-    pnl_fig = VolatilityCharts.plot_pnl_payoff_diagram(
-        current_price=current_price,
-        call_strike=strategy['call_strike'],
-        put_strike=strategy['put_strike'],
-        credit_received=strategy['credit_received'] * position_size['contracts'] * 100,  # Total credit
-        strategy_name=strategy['strategy_name']
-    )
-    st.plotly_chart(pnl_fig, use_container_width=True)
+    if strategy.get('should_trade', False) and position_size.get('contracts', 0) > 0:
+        # Generate P&L payoff diagram for the strategy
+        pnl_fig = VolatilityCharts.plot_pnl_payoff_diagram(
+            current_price=current_price,
+            call_strike=strategy['call_strike'],
+            put_strike=strategy['put_strike'],
+            credit_received=strategy['risk_metrics']['credit_received'] * position_size['contracts'] * 100,
+            strategy_name=strategy['name']
+        )
+        st.plotly_chart(pnl_fig, use_container_width=True)
 
-    # Risk metrics summary
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Max Profit", f"${strategy['max_profit'] * position_size['contracts']:.0f}")
-    with col2:
-        st.metric("Max Loss Est.", f"${strategy['max_loss_estimate'] * position_size['contracts']:.0f}")
-    with col3:
-        st.metric("Win Probability", f"{strategy['profit_probability']*100:.0f}%")
-    with col4:
-        st.metric("Risk/Reward", f"{strategy['risk_reward_ratio']:.2f}")
+        # Risk metrics summary
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Max Profit", f"${strategy['risk_metrics']['max_profit'] * position_size['contracts'] * 100:.0f}")
+        with col2:
+            st.metric("Max Loss Est.", f"${strategy['risk_metrics']['max_loss_estimate'] * position_size['contracts'] * 100:.0f}")
+        with col3:
+            st.metric("Win Probability", f"{strategy['risk_metrics']['profit_probability']*100:.0f}%")
+        with col4:
+            st.metric("Risk/Reward", f"{strategy['risk_metrics']['risk_reward_ratio']:.2f}")
+    else:
+        st.info("📊 P&L visualization not available for SKIP trades (low volatility regime).")
 
     # Historical P&L (if backtest data exists)
     st.divider()

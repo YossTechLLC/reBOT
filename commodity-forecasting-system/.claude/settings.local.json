@@ -6,7 +6,11 @@
       "Bash(python -c:*)",
       "Bash(python scripts/validate_volatility_mvp.py:*)",
       "Bash(ls:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ln:*)",
+      "Bash(python -m py_compile:*)",
+      "WebSearch",
+      "Bash(git config:*)"
     ]
   }
 }

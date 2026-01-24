@@ -77,6 +77,32 @@
 
 ---
 
+## Priority 4: New Features
+
+### 4.1 Prediction Date Feature (Historical Backtesting)
+- **Files:** `utils.py`, `data_manager.py`, `model_controller.py`, `app.py`
+- **Change:** Added ability to select any historical date for prediction, with proper temporal cutoff to prevent data leakage
+- **Status:** [x] COMPLETE
+
+#### Phase 1: Session State (utils.py)
+- Added `prediction_date`, `use_latest_date`, `available_date_range`, `data_end_date` variables
+
+#### Phase 2: Data Loading (data_manager.py)
+- Added `end_date` parameter to `load_spy_data()`, `load_vix_data()`, `load_complete_dataset()`
+
+#### Phase 3: Model Controller (model_controller.py)
+- Added `prediction_date` parameter to `train_hmm()` for temporal cutoff
+- Created `predict_for_date()` method for historical predictions
+- Added training metadata tracking
+
+#### Phase 4: UI Updates (app.py)
+- Added "Predict for Tomorrow (Latest)" toggle checkbox
+- Added date picker widget (visible when not using latest)
+- Updated all button handlers to pass prediction_date
+- Updated prediction display to show historical backtest indicators
+
+---
+
 ## Implementation Log
 
 | Time | Task | Status | Notes |
@@ -91,6 +117,7 @@
 | 2026-01-24 | Add P&L distribution | DONE | Histogram with statistics |
 | 2026-01-24 | Add cumulative P&L | DONE | Time series of P&L |
 | 2026-01-24 | Update Strategy tab | DONE | Integrated all P&L visualizations |
+| 2026-01-24 | Prediction Date Feature | DONE | 4-phase implementation for historical backtesting |
 
 ---
 
@@ -98,10 +125,11 @@
 
 | File | Status | Changes Made |
 |------|--------|--------------|
-| `src/ui/model_controller.py` | COMPLETE | Fixed weight setting (lines 286-290), added data tracking (lines 92-96), added coherency check (lines 201-216) |
-| `src/ui/utils.py` | COMPLETE | Strengthened validate_data_loaded() with 3-level validation (lines 227-256) |
-| `src/ui/app.py` | COMPLETE | Added cache invalidation (lines 155-166), validation UI (lines 425-505), P&L viz integration (lines 560-610) |
-| `src/ui/visualization.py` | COMPLETE | Added plot_pnl_payoff_diagram(), plot_pnl_distribution(), plot_cumulative_pnl() (lines 409-708) |
+| `src/ui/model_controller.py` | COMPLETE | Fixed weight setting, added data tracking, added coherency check, added prediction_date parameter to train_hmm(), created predict_for_date() method |
+| `src/ui/utils.py` | COMPLETE | Strengthened validate_data_loaded() with 3-level validation, added session state variables for prediction date feature |
+| `src/ui/app.py` | COMPLETE | Added cache invalidation, validation UI, P&L viz integration, prediction date toggle & date picker, updated all button handlers |
+| `src/ui/visualization.py` | COMPLETE | Added plot_pnl_payoff_diagram(), plot_pnl_distribution(), plot_cumulative_pnl() |
+| `src/ui/data_manager.py` | COMPLETE | Added end_date parameter to load_spy_data(), load_vix_data(), load_complete_dataset() |
 
 ---
 

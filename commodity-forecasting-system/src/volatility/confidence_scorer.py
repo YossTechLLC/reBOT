@@ -183,10 +183,13 @@ class VolatilityConfidenceScorer:
         score = np.clip(score, 0, 100)
 
         # Bonus for high volatility regimes (categorical boost)
+        # Supports 2-5 regime configurations
         if regime_label == 'high_vol':
             score = min(score * 1.1, 100)  # 10% bonus
-        elif regime_label == 'explosive_vol':
-            score = min(score * 1.2, 100)  # 20% bonus
+        elif regime_label == 'extreme_vol':
+            score = min(score * 1.2, 100)  # 20% bonus for extreme regime (5-state)
+        elif regime_label == 'very_low_vol':
+            score = score * 0.9  # 10% penalty for very calm markets (4-5 state)
 
         return score
 

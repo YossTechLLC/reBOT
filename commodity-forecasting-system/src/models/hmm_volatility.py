@@ -36,15 +36,26 @@ class VolatilityHMM:
     - Features: overnight_gap_abs, range_ma_5, vix_level, volume_ratio
     """
 
-    def __init__(self, n_regimes: int = 3, random_state: int = 42):
+    # Default features used when none specified
+    DEFAULT_FEATURES = [
+        'overnight_gap_abs',
+        'range_ma_5',
+        'vix_level',
+        'volume_ratio',
+        'range_std_5'
+    ]
+
+    def __init__(self, n_regimes: int = 3, features: list = None, random_state: int = 42):
         """
         Initialize HMM.
 
         Args:
             n_regimes: Number of volatility regimes (default: 3)
+            features: List of feature column names to use (default: 5 core features)
             random_state: Random seed for reproducibility
         """
         self.n_regimes = n_regimes
+        self.features = features if features is not None else self.DEFAULT_FEATURES.copy()
         self.random_state = random_state
 
         # HMM model (will be trained)
@@ -58,13 +69,36 @@ class VolatilityHMM:
         self.regime_volatilities = {}  # {'low_vol': 0.006, 'normal_vol': 0.012, ...}
         self.regime_mappings = {}  # {0: 'low_vol', 1: 'normal_vol', 2: 'high_vol'}
 
-        logger.info(f"Initialized VolatilityHMM with {n_regimes} regimes")
+        logger.info(f"Initialized VolatilityHMM with {n_regimes} regimes, {len(self.features)} features")
+
+    def _get_regime_labels(self, n_regimes: int) -> list:
+        """
+        Generate regime labels based on number of regimes.
+
+        Uses semantically meaningful labels that map to volatility levels.
+        Based on financial HMM literature which commonly uses 2-5 states.
+
+        Args:
+            n_regimes: Number of volatility regimes (2-5)
+
+        Returns:
+            List of regime label strings ordered low-to-high volatility
+        """
+        label_sets = {
+            2: ['low_vol', 'high_vol'],
+            3: ['low_vol', 'normal_vol', 'high_vol'],
+            4: ['very_low_vol', 'low_vol', 'normal_vol', 'high_vol'],
+            5: ['very_low_vol', 'low_vol', 'normal_vol', 'high_vol', 'extreme_vol']
+        }
+        # Fallback for unexpected n_regimes
+        return label_sets.get(n_regimes, [f'regime_{i}' for i in range(n_regimes)])
 
     def prepare_features(self, df: pd.DataFrame) -> Tuple[np.ndarray, pd.Series]:
         """
         Extract features for HMM training.
 
-        Features:
+        Uses the features specified during initialization (self.features).
+        Default features:
         1. overnight_gap_abs - Morning volatility predictor
         2. range_ma_5 - Recent volatility trend
         3. vix_level - External fear gauge
@@ -77,13 +111,8 @@ class VolatilityHMM:
         Returns:
             (feature_matrix, target_series)
         """
-        required_cols = [
-            'overnight_gap_abs',
-            'range_ma_5',
-            'vix_level',
-            'volume_ratio',
-            'range_std_5'
-        ]
+        # Use instance features (configurable via constructor)
+        required_cols = self.features
 
         # Check for missing feature columns
         missing = set(required_cols) - set(df.columns)
@@ -175,8 +204,8 @@ class VolatilityHMM:
         # Sort regimes by volatility (low to high)
         sorted_regimes = sorted(regime_vols.items(), key=lambda x: x[1])
 
-        # Map to labels
-        labels = ['low_vol', 'normal_vol', 'high_vol'][:self.n_regimes]
+        # Map to labels using dynamic label generation
+        labels = self._get_regime_labels(self.n_regimes)
 
         self.regime_mappings = {}
         self.regime_volatilities = {}
@@ -305,7 +334,8 @@ class VolatilityHMM:
             'regime_labels': self.regime_labels,
             'regime_volatilities': self.regime_volatilities,
             'regime_mappings': self.regime_mappings,
-            'n_regimes': self.n_regimes
+            'n_regimes': self.n_regimes,
+            'features': self.features
         }
 
         with open(filepath, 'wb') as f:
@@ -329,6 +359,8 @@ class VolatilityHMM:
         self.regime_volatilities = model_data['regime_volatilities']
         self.regime_mappings = model_data['regime_mappings']
         self.n_regimes = model_data['n_regimes']
+        # Backward compatible: older models may not have features saved
+        self.features = model_data.get('features', self.DEFAULT_FEATURES.copy())
 
         logger.info(f"Model loaded from {filepath}")
         logger.info(f"Regime volatilities: {self.regime_volatilities}")

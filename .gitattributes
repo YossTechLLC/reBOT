@@ -1,0 +1,31 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Explicitly declare text files to always normalize
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.sh text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.ipynb text eol=lf
+
+# Denote binary files that should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pkl binary
+*.pickle binary
+*.model binary
+*.weights binary
+*.h5 binary
+*.pt binary
+*.pth binary

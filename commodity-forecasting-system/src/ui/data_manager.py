@@ -56,36 +56,53 @@ class DataManager:
         logger.info("DataManager initialized")
 
     @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def load_spy_data(_self, days: int = 180) -> pd.DataFrame:
+    def load_spy_data(_self, days: int = 180, end_date: Optional[datetime] = None) -> pd.DataFrame:
         """
         Load SPY daily bars with caching.
 
         Args:
             days: Number of historical days to load
+            end_date: Load data UP TO this date (None = today/now)
 
         Returns:
             DataFrame with OHLCV data
         """
-        logger.info(f"Loading {days} days of SPY data")
-        spy_daily = _self.alpaca_client.get_daily_bars('SPY', days=days)
+        end_str = end_date.strftime('%Y-%m-%d') if end_date else 'now'
+        logger.info(f"Loading {days} days of SPY data ending at {end_str}")
+        spy_daily = _self.alpaca_client.get_daily_bars('SPY', days=days, end_date=end_date)
         logger.info(f"Loaded {len(spy_daily)} SPY bars")
         return spy_daily
 
     @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def load_vix_data(_self, days: int = 180) -> pd.DataFrame:
+    def load_vix_data(_self, days: int = 180, end_date: Optional[datetime] = None) -> pd.DataFrame:
         """
         Load VIX data from Yahoo Finance with caching.
 
         Args:
             days: Number of historical days to load
+            end_date: Load data UP TO this date (None = today/now)
 
         Returns:
             DataFrame with VIX OHLCV data
         """
         import yfinance as yf
 
-        logger.info(f"Loading {days} days of VIX data")
-        vix_daily = yf.download('^VIX', period=f'{days}d', progress=False)
+        # Calculate date range
+        if end_date is None:
+            end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+
+        end_str = end_date.strftime('%Y-%m-%d')
+        start_str = start_date.strftime('%Y-%m-%d')
+        logger.info(f"Loading VIX data from {start_str} to {end_str}")
+
+        # Use explicit date range instead of period for precise control
+        vix_daily = yf.download(
+            '^VIX',
+            start=start_str,
+            end=end_str,
+            progress=False
+        )
 
         # Standardize column names
         if isinstance(vix_daily.columns, pd.MultiIndex):
@@ -118,18 +135,28 @@ class DataManager:
         logger.info(f"Created {len(features_df.columns)} features on {len(features_df)} rows")
         return features_df
 
-    def load_complete_dataset(self, days: int = 180) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def load_complete_dataset(
+        self,
+        days: int = 180,
+        end_date: Optional[datetime] = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Load complete dataset: raw SPY, raw VIX, and engineered features.
 
         Args:
             days: Number of historical days to load
+            end_date: Load data UP TO this date (None = today/now).
+                     For backtesting, set this to day BEFORE the prediction date
+                     to prevent data leakage.
 
         Returns:
             Tuple of (spy_data, vix_data, features_df)
         """
-        spy_data = self.load_spy_data(days)
-        vix_data = self.load_vix_data(days)
+        end_str = end_date.strftime('%Y-%m-%d') if end_date else 'now'
+        logger.info(f"Loading complete dataset: {days} days ending at {end_str}")
+
+        spy_data = self.load_spy_data(days, end_date=end_date)
+        vix_data = self.load_vix_data(days, end_date=end_date)
         features_df = self.engineer_features(spy_data, vix_data)
 
         return spy_data, vix_data, features_df
