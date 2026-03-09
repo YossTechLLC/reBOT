@@ -49,6 +49,7 @@ def initialize_session_state():
         # HMM feature selection - configurable features for regime detection
         'hmm_features': None,             # Selected features (None = use defaults)
         'hmm_feature_bounds': {},         # Custom scaling bounds {feature: {min, max}}
+        'use_data_driven_bounds': False,  # If True, use percentile-based auto bounds
     }
 
     for key, value in defaults.items():

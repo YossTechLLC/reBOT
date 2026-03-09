@@ -151,16 +151,18 @@ def render_sidebar():
 
     # Date picker for historical predictions (only shown when not using latest)
     if not use_latest:
-        # Determine available date range from loaded data, or use sensible defaults
+        # Determine available date range for the picker
+        # IMPORTANT: max_date should be based on calendar/current date, NOT loaded data
+        # This prevents the date picker from clamping backward when data is loaded with a cutoff
         if st.session_state.get('features_df') is not None:
             min_date = st.session_state.features_df.index[0].to_pydatetime().date()
-            data_end = st.session_state.features_df.index[-1].to_pydatetime().date()
-            # Allow predicting for the day AFTER data ends (using last day's features)
-            max_date = data_end + timedelta(days=1)
         else:
             # Default range before data is loaded
-            max_date = datetime.now().date()
-            min_date = max_date - timedelta(days=180)
+            min_date = datetime.now().date() - timedelta(days=180)
+
+        # Always set max_date to today (allows selecting any historical date up to now)
+        # Don't use loaded data end date, as it may be limited by prediction_date cutoff
+        max_date = datetime.now().date()
 
         # Get previously selected date or default to max_date
         default_date = st.session_state.get('prediction_date')
@@ -169,7 +171,8 @@ def render_sidebar():
         elif hasattr(default_date, 'date'):
             default_date = default_date.date()
 
-        # Clamp default_date to valid range (handles stale session state)
+        # Only clamp if truly out of range (don't clamp based on loaded data)
+        # User can select any calendar date; prediction logic will handle data availability
         if default_date < min_date:
             default_date = min_date
         elif default_date > max_date:
@@ -184,6 +187,15 @@ def render_sidebar():
         )
         st.session_state.prediction_date = pd.Timestamp(selected_date)
         st.sidebar.caption(f"📅 Predicting FOR: {selected_date} (using prior day's data)")
+
+        # Validate if selected date is within loaded data range
+        if st.session_state.get('features_df') is not None:
+            data_end = st.session_state.features_df.index[-1].to_pydatetime().date()
+            if selected_date > data_end:
+                st.sidebar.warning(
+                    f"⚠️ Selected date ({selected_date}) is beyond loaded data ({data_end}). "
+                    f"Click 'Load/Refresh Data' to update."
+                )
     else:
         st.session_state.prediction_date = None
 
@@ -231,7 +243,13 @@ def render_sidebar():
                 st.sidebar.success(f"✅ Loaded {summary['total_rows']} days")
                 st.sidebar.caption(f"Date range: {summary['start_date']} to {summary['end_date']}")
                 if prediction_date is not None:
-                    st.sidebar.info(f"📅 Historical mode: Data ends at {summary['end_date']}")
+                    # Show info about historical mode and next steps
+                    st.sidebar.info(
+                        f"📅 Historical mode active\n\n"
+                        f"Data loaded up to {summary['end_date']}\n"
+                        f"(Last trading day ≤ {prediction_date.strftime('%Y-%m-%d')})"
+                    )
+                    st.sidebar.caption("Next: Train HMM → Run Prediction")
                 else:
                     st.sidebar.info("ℹ️ Please retrain HMM model with new data")
             except Exception as e:
@@ -283,53 +301,94 @@ def render_sidebar():
         st.markdown("**Scaling Bounds**")
         st.caption("Min/max bounds for feature normalization")
 
-        # Initialize bounds in session state if not present
+        # Initialize session state variables
         if 'hmm_feature_bounds' not in st.session_state:
             st.session_state.hmm_feature_bounds = {}
+        if 'use_data_driven_bounds' not in st.session_state:
+            st.session_state.use_data_driven_bounds = False
 
-        feature_bounds = st.session_state.hmm_feature_bounds
+        # Data-driven bounds option (recommended for stability)
+        use_data_driven = st.checkbox(
+            "Use Data-Driven Bounds (Recommended)",
+            value=st.session_state.use_data_driven_bounds,
+            help="Automatically calculate bounds from data percentiles. More stable but less customizable."
+        )
+        st.session_state.use_data_driven_bounds = use_data_driven
 
-        for feat in selected_features:
-            info = HMM_FEATURE_INFO.get(feat, {})
-            default_min = info.get('min', 0.0)
-            default_max = info.get('max', 1.0)
-            unit = info.get('unit', '')
-            desc = info.get('description', feat)
-            effect = info.get('effect', '')
+        if use_data_driven:
+            st.info("Bounds will be auto-calculated from data (1st-99th percentile)")
+            # Set all bounds to None to signal data-driven mode
+            feature_bounds = {feat: None for feat in selected_features}
+        else:
+            feature_bounds = st.session_state.hmm_feature_bounds
 
-            # Get current bounds or use defaults
-            current_bounds = feature_bounds.get(feat, {'min': default_min, 'max': default_max})
+            # Get actual data range if data is loaded (for display)
+            actual_ranges = {}
+            if st.session_state.get('data_loaded') and st.session_state.get('features_df') is not None:
+                df = st.session_state.features_df
+                for feat in selected_features:
+                    if feat in df.columns:
+                        actual_ranges[feat] = {
+                            'min': df[feat].min(),
+                            'max': df[feat].max()
+                        }
 
-            with st.container():
-                st.markdown(f"**{feat}** ({unit})")
-                st.caption(f"{desc}")
-                st.caption(f"*{effect}*")
+            for feat in selected_features:
+                info = HMM_FEATURE_INFO.get(feat, {})
+                default_min = info.get('min', 0.0)
+                default_max = info.get('max', 1.0)
+                unit = info.get('unit', '')
+                desc = info.get('description', feat)
+                effect = info.get('effect', '')
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    new_min = st.number_input(
-                        f"Min",
-                        value=float(current_bounds['min']),
-                        step=0.1,
-                        key=f"bound_min_{feat}",
-                        help=f"Lower bound for {feat} scaling"
-                    )
-                with col2:
-                    new_max = st.number_input(
-                        f"Max",
-                        value=float(current_bounds['max']),
-                        step=0.1,
-                        key=f"bound_max_{feat}",
-                        help=f"Upper bound for {feat} scaling"
-                    )
+                # Get current bounds or use defaults
+                current_bounds = feature_bounds.get(feat, {'min': default_min, 'max': default_max})
+                if current_bounds is None:
+                    current_bounds = {'min': default_min, 'max': default_max}
 
-                # Validate min < max
-                if new_min >= new_max:
-                    st.error(f"Min must be < Max")
-                else:
-                    feature_bounds[feat] = {'min': new_min, 'max': new_max}
+                with st.container():
+                    st.markdown(f"**{feat}** ({unit})")
+                    st.caption(f"{desc}")
+                    st.caption(f"*{effect}*")
 
-                st.markdown("---")
+                    # Show actual data range if available
+                    if feat in actual_ranges:
+                        ar = actual_ranges[feat]
+                        st.caption(f"📊 *Actual data: {ar['min']:.4f} - {ar['max']:.4f}*")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_min = st.number_input(
+                            f"Min",
+                            value=float(current_bounds['min']),
+                            step=0.1,
+                            key=f"bound_min_{feat}",
+                            help=f"Lower bound for {feat} scaling"
+                        )
+                    with col2:
+                        new_max = st.number_input(
+                            f"Max",
+                            value=float(current_bounds['max']),
+                            step=0.1,
+                            key=f"bound_max_{feat}",
+                            help=f"Upper bound for {feat} scaling"
+                        )
+
+                    # Validate min < max
+                    if new_min >= new_max:
+                        st.error(f"Min must be < Max")
+                    else:
+                        feature_bounds[feat] = {'min': new_min, 'max': new_max}
+
+                    # Warn if bounds are too wide compared to data
+                    if feat in actual_ranges:
+                        ar = actual_ranges[feat]
+                        data_range = ar['max'] - ar['min']
+                        bound_range = new_max - new_min
+                        if bound_range > 0 and data_range / bound_range < 0.1:
+                            st.warning(f"⚠️ Data covers only {data_range/bound_range*100:.1f}% of bounds")
+
+                    st.markdown("---")
 
         st.session_state.hmm_feature_bounds = feature_bounds
 

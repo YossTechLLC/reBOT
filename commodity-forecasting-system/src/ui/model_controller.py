@@ -238,6 +238,51 @@ class ModelController:
         if st.session_state.hmm_model is None:
             raise ValueError("HMM model not trained. Train model first.")
 
+        # CRITICAL: Data leakage detection for historical predictions
+        if prediction_date is not None:
+            model_cutoff = st.session_state.get('hmm_training_cutoff')
+
+            # Check if model was trained with temporal cutoff
+            if model_cutoff is None:
+                raise ValueError(
+                    f"⚠️ DATA LEAKAGE DETECTED!\n\n"
+                    f"You are trying to make a HISTORICAL prediction for {prediction_date.strftime('%Y-%m-%d')}, "
+                    f"but the HMM model was trained WITHOUT a temporal cutoff.\n\n"
+                    f"This means the model was trained on ALL available data (including future data), "
+                    f"which creates look-ahead bias and invalidates backtesting results.\n\n"
+                    f"TO FIX THIS:\n"
+                    f"1. Keep your prediction date set to {prediction_date.strftime('%Y-%m-%d')}\n"
+                    f"2. Click '🚀 Train HMM' again\n"
+                    f"   (The system will automatically train ONLY on data before {prediction_date.strftime('%Y-%m-%d')})\n"
+                    f"3. Then click '🔮 Run Prediction' again\n\n"
+                    f"CORRECT WORKFLOW FOR HISTORICAL PREDICTIONS:\n"
+                    f"  Set Prediction Date → Train HMM → Run Prediction\n\n"
+                    f"This ensures the model never sees data from the future."
+                )
+
+            # Check if model cutoff matches or is before prediction date
+            if model_cutoff > prediction_date:
+                raise ValueError(
+                    f"⚠️ DATA LEAKAGE DETECTED!\n\n"
+                    f"MODEL TRAINING MISMATCH:\n"
+                    f"  • Model was trained on data up to: {model_cutoff.strftime('%Y-%m-%d')}\n"
+                    f"  • You are predicting for: {prediction_date.strftime('%Y-%m-%d')}\n\n"
+                    f"The model was trained on data AFTER your prediction target!\n"
+                    f"This creates look-ahead bias - the model has 'seen the future'.\n\n"
+                    f"EXAMPLE OF THE PROBLEM:\n"
+                    f"  You're asking: 'What will happen on Jan 16?'\n"
+                    f"  But the model was trained on data through Jan 25!\n"
+                    f"  It already knows what happened on Jan 16-25.\n\n"
+                    f"TO FIX THIS:\n"
+                    f"1. Keep your prediction date set to {prediction_date.strftime('%Y-%m-%d')}\n"
+                    f"2. Click '🚀 Train HMM' to retrain with correct temporal cutoff\n"
+                    f"3. Then click '🔮 Run Prediction' again\n\n"
+                    f"This is why your UI prediction (extreme_vol) differs from validation (very_low_vol).\n"
+                    f"The validation script trains correctly; the UI had stale model from wrong time period."
+                )
+
+            logger.info(f"✅ Data leakage check passed: model cutoff {model_cutoff} ≤ prediction date {prediction_date}")
+
         # Determine which row to use for prediction
         if prediction_date is None:
             # Current behavior - use last row, predict for "tomorrow"

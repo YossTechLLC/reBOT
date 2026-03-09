@@ -198,9 +198,15 @@ class VolatilityHMM:
                     mins.append(bounds['min'])
                     maxs.append(bounds['max'])
                 else:
-                    # Use data-driven bounds for unknown features
-                    mins.append(X[:, i].min())
-                    maxs.append(X[:, i].max())
+                    # Use percentile-based bounds for data-driven scaling
+                    # 1st-99th percentile excludes outliers while capturing most variation
+                    data_min = np.percentile(X[:, i], 1)
+                    data_max = np.percentile(X[:, i], 99)
+                    # Add small padding to avoid edge cases
+                    padding = (data_max - data_min) * 0.05 if data_max > data_min else 0.1
+                    mins.append(data_min - padding)
+                    maxs.append(data_max + padding)
+                    logger.info(f"Feature '{feat}': using data-driven bounds [{mins[-1]:.4f}, {maxs[-1]:.4f}]")
 
             self._scaler_mins = np.array(mins)
             self._scaler_maxs = np.array(maxs)
@@ -215,6 +221,139 @@ class VolatilityHMM:
         X_scaled = (X_clipped - self._scaler_mins) / ranges
 
         return X_scaled
+
+    def _validate_bounds(self, X: np.ndarray) -> list:
+        """
+        Validate feature bounds against actual data distribution.
+
+        Detects when bounds are too wide for the data, which can cause
+        numerical instability during HMM training.
+
+        Args:
+            X: Raw feature matrix (n_samples, n_features)
+
+        Returns:
+            List of warning dictionaries for problematic features
+        """
+        warnings = []
+        for i, feat in enumerate(self.features):
+            data_min, data_max = X[:, i].min(), X[:, i].max()
+            data_range = data_max - data_min
+
+            bounds = self.feature_bounds.get(feat)
+            if bounds is None:
+                continue  # Data-driven bounds are always fine
+
+            bound_min, bound_max = bounds['min'], bounds['max']
+            bound_range = bound_max - bound_min
+
+            if bound_range <= 0:
+                warnings.append({
+                    'feature': feat,
+                    'issue': 'invalid_bounds',
+                    'data_range': (data_min, data_max),
+                    'bound_range': (bound_min, bound_max),
+                    'coverage_pct': 0,
+                    'suggestion': f"Max must be greater than min"
+                })
+                continue
+
+            # Check if data occupies less than 10% of bound range
+            coverage = data_range / bound_range if bound_range > 0 else 0
+            if coverage < 0.10:
+                # Suggest tighter bounds based on data with 10% padding
+                padding = data_range * 0.1 if data_range > 0 else 0.1
+                suggested_min = max(0, data_min - padding)
+                suggested_max = data_max + padding
+
+                warnings.append({
+                    'feature': feat,
+                    'issue': 'sparse_coverage',
+                    'data_range': (data_min, data_max),
+                    'bound_range': (bound_min, bound_max),
+                    'coverage_pct': coverage * 100,
+                    'suggestion': f"Try bounds [{suggested_min:.3f}, {suggested_max:.3f}]"
+                })
+
+        return warnings
+
+    def _check_scaled_variance(self, X_scaled: np.ndarray, min_variance: float = 1e-6) -> Tuple[bool, list]:
+        """
+        Check if scaled features have sufficient variance for stable HMM training.
+
+        Args:
+            X_scaled: Scaled feature matrix (values should be in 0-1 range)
+            min_variance: Minimum acceptable variance per feature
+
+        Returns:
+            (is_healthy, list of problematic features)
+        """
+        variances = X_scaled.var(axis=0)
+        problems = []
+
+        for i, feat in enumerate(self.features):
+            if variances[i] < min_variance:
+                problems.append({
+                    'feature': feat,
+                    'variance': variances[i],
+                    'min_required': min_variance
+                })
+
+        is_healthy = len(problems) == 0
+        return is_healthy, problems
+
+    def get_scaling_diagnostics(self, df: pd.DataFrame) -> Dict:
+        """
+        Get diagnostics about feature scaling for debugging.
+
+        Useful for understanding why HMM training might fail or
+        produce unexpected results.
+
+        Args:
+            df: DataFrame with engineered features
+
+        Returns:
+            Dictionary with per-feature scaling statistics
+        """
+        if self._scaler_mins is None or self._scaler_maxs is None:
+            raise ValueError("Model not trained. Call train() first to compute scaling parameters.")
+
+        X, _ = self.prepare_features(df)
+        X_scaled = self._scale_features(X, fit=False)
+
+        diagnostics = {}
+        for i, feat in enumerate(self.features):
+            raw_data = X[:, i]
+            scaled_data = X_scaled[:, i]
+
+            # Get bounds used
+            bounds = self.feature_bounds.get(feat, {})
+            bound_min = self._scaler_mins[i]
+            bound_max = self._scaler_maxs[i]
+            bound_range = bound_max - bound_min
+
+            # Calculate coverage
+            data_range = raw_data.max() - raw_data.min()
+            coverage_pct = (data_range / bound_range * 100) if bound_range > 0 else 100.0
+
+            diagnostics[feat] = {
+                'raw_min': float(raw_data.min()),
+                'raw_max': float(raw_data.max()),
+                'raw_mean': float(raw_data.mean()),
+                'raw_std': float(raw_data.std()),
+                'scaled_min': float(scaled_data.min()),
+                'scaled_max': float(scaled_data.max()),
+                'scaled_mean': float(scaled_data.mean()),
+                'scaled_std': float(scaled_data.std()),
+                'scaled_variance': float(scaled_data.var()),
+                'bound_min': float(bound_min),
+                'bound_max': float(bound_max),
+                'is_data_driven': bounds is None or feat not in self.feature_bounds or self.feature_bounds.get(feat) is None,
+                'coverage_pct': coverage_pct,
+                'is_healthy': float(scaled_data.var()) > 1e-6
+            }
+
+        return diagnostics
 
     def train(
         self,
@@ -238,20 +377,69 @@ class VolatilityHMM:
         # Prepare features
         X, y = self.prepare_features(df)
 
+        # Validate bounds before scaling
+        bound_warnings = self._validate_bounds(X)
+        if bound_warnings:
+            for w in bound_warnings:
+                logger.warning(
+                    f"Feature '{w['feature']}' bounds may be too wide: "
+                    f"data range [{w['data_range'][0]:.4f}, {w['data_range'][1]:.4f}] "
+                    f"covers only {w['coverage_pct']:.1f}% of bound range "
+                    f"[{w['bound_range'][0]:.4f}, {w['bound_range'][1]:.4f}]. "
+                    f"Suggestion: {w['suggestion']}"
+                )
+
         # Scale features using configured bounds
         X_scaled = self._scale_features(X, fit=True)
 
+        # Check variance after scaling
+        is_healthy, variance_problems = self._check_scaled_variance(X_scaled)
+        if not is_healthy:
+            problem_features = [p['feature'] for p in variance_problems]
+            logger.warning(
+                f"Low variance detected in scaled features: {problem_features}. "
+                f"Consider using tighter bounds or enabling 'Data-Driven Bounds'."
+            )
+
         # Initialize HMM
+        # min_covar prevents numerical instability when feature bounds are wide
+        # and scaled data has very small variance
         self.model = hmm.GaussianHMM(
             n_components=self.n_regimes,
             covariance_type='diag',
             n_iter=n_iter,
             tol=tol,
-            random_state=self.random_state
+            random_state=self.random_state,
+            min_covar=1e-4  # Prevents covariance collapse with wide scaling bounds
         )
 
-        # Fit model
-        self.model.fit(X_scaled)
+        # Fit model with improved error handling
+        try:
+            self.model.fit(X_scaled)
+        except ValueError as e:
+            error_str = str(e).lower()
+            if 'startprob_' in error_str and 'nan' in error_str:
+                # Provide actionable error message
+                suggestions = []
+                if bound_warnings:
+                    suggestions.append("Problematic bounds detected:")
+                    for w in bound_warnings:
+                        suggestions.append(f"  - {w['feature']}: {w['suggestion']}")
+                if variance_problems:
+                    suggestions.append("Low variance features:")
+                    for p in variance_problems:
+                        suggestions.append(f"  - {p['feature']}: variance={p['variance']:.2e}")
+
+                suggestion_text = '\n'.join(suggestions) if suggestions else "Try enabling 'Data-Driven Bounds'"
+
+                raise ValueError(
+                    f"HMM training failed due to numerical instability. "
+                    f"Your feature scaling bounds are likely too wide for the data.\n\n"
+                    f"Suggestions:\n"
+                    f"1. Enable 'Use Data-Driven Bounds' option (auto-detects bounds from data)\n"
+                    f"2. Manually tighten bounds:\n{suggestion_text}"
+                ) from e
+            raise
 
         # Predict regimes
         regimes = self.model.predict(X_scaled)
